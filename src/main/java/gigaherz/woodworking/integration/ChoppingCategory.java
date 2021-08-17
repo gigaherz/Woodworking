@@ -1,7 +1,7 @@
 package gigaherz.woodworking.integration;
-
+/*
 import com.google.common.collect.Lists;
-import com.mojang.blaze3d.matrix.MatrixStack;
+import com.mojang.blaze3d.vertex.PoseStack;
 import gigaherz.woodworking.WoodworkingBlocks;
 import gigaherz.woodworking.WoodworkingMod;
 import gigaherz.woodworking.api.ChoppingRecipe;
@@ -14,12 +14,12 @@ import mezz.jei.api.helpers.IGuiHelper;
 import mezz.jei.api.ingredients.IIngredients;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.ItemRenderer;
-import net.minecraft.client.resources.I18n;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.renderer.entity.ItemRenderer;
+import net.minecraft.client.resources.language.I18n;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraftforge.common.ToolType;
 
 import javax.annotation.Nonnull;
@@ -63,7 +63,7 @@ public class ChoppingCategory implements IRecipeCategory<ChoppingRecipe>
     @Override
     public String getTitle()
     {
-        return I18n.format("text.woodworking.jei.category.chopping");
+        return I18n.get("text.woodworking.jei.category.chopping");
     }
 
     @Nonnull
@@ -83,7 +83,7 @@ public class ChoppingCategory implements IRecipeCategory<ChoppingRecipe>
     public void setIngredients(ChoppingRecipe choppingRecipe, IIngredients iIngredients)
     {
         iIngredients.setInputIngredients(choppingRecipe.getIngredients());
-        iIngredients.setOutput(VanillaTypes.ITEM, choppingRecipe.getRecipeOutput());
+        iIngredients.setOutput(VanillaTypes.ITEM, choppingRecipe.getResultItem());
     }
 
     @Override
@@ -107,25 +107,25 @@ public class ChoppingCategory implements IRecipeCategory<ChoppingRecipe>
     );
 
     @Override
-    public void draw(ChoppingRecipe recipe, MatrixStack matrixStack, double mouseX, double mouseY)
+    public void draw(ChoppingRecipe recipe, PoseStack matrixStack, double mouseX, double mouseY)
     {
         Minecraft mc = Minecraft.getInstance();
         ItemRenderer itemRenderer = mc.getItemRenderer();
 
         arrow.draw(matrixStack, 42, 16);
 
-        float gameTime = mc.world.getGameTime();
-        int index = MathHelper.floor(gameTime / 20) % tools.size();
+        float gameTime = mc.level.getGameTime();
+        int index = Mth.floor(gameTime / 20) % tools.size();
         ItemStack stack = tools.get(index);
         int axeLevel = stack.getHarvestLevel(ToolType.AXE, null, null);
 
         double outputMultiplier = recipe.getOutputMultiplier(axeLevel);
         String text = String.format("x%1.1f", outputMultiplier);
-        int width = mc.fontRenderer.getStringWidth(text);
-        mc.fontRenderer.drawStringWithShadow(matrixStack, text, (112 - 2) - width, 40, 0xFFFFFFFF);
+        int width = mc.font.width(text);
+        mc.font.drawShadow(matrixStack, text, (112 - 2) - width, 40, 0xFFFFFFFF);
 
-        int clickMultiplier = MathHelper.ceil(200 / recipe.getHitProgress(axeLevel));
-        itemRenderer.renderItemAndEffectIntoGUI(stack, 36, 30);
-        mc.fontRenderer.drawStringWithShadow(matrixStack, String.format("x%d", clickMultiplier), 50, 40, 0xFFFFFFFF);
+        int clickMultiplier = Mth.ceil(200 / recipe.getHitProgress(axeLevel));
+        itemRenderer.renderAndDecorateItem(stack, 36, 30);
+        mc.font.drawShadow(matrixStack, String.format("x%d", clickMultiplier), 50, 40, 0xFFFFFFFF);
     }
-}
+}*/

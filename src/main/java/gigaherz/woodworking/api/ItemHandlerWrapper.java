@@ -1,22 +1,22 @@
 package gigaherz.woodworking.api;
 
 import com.google.common.collect.AbstractIterator;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.inventory.IInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.util.math.vector.Vector3d;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.Container;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.items.IItemHandlerModifiable;
 
 import javax.annotation.Nullable;
 import java.util.Iterator;
 import java.util.function.Supplier;
 
-public class ItemHandlerWrapper implements IInventory, Iterable<ItemStack>
+public class ItemHandlerWrapper implements Container, Iterable<ItemStack>
 {
     protected final IItemHandlerModifiable inner;
 
     @Nullable
-    protected final Supplier<Vector3d> location;
+    protected final Supplier<Vec3> location;
     protected final int distance;
 
     public ItemHandlerWrapper(IItemHandlerModifiable inner)
@@ -24,7 +24,7 @@ public class ItemHandlerWrapper implements IInventory, Iterable<ItemStack>
         this(inner, null, 0);
     }
 
-    public ItemHandlerWrapper(IItemHandlerModifiable inner, @Nullable Supplier<Vector3d> location, int distance)
+    public ItemHandlerWrapper(IItemHandlerModifiable inner, @Nullable Supplier<Vec3> location, int distance)
     {
         this.inner = inner;
         this.distance = distance;
@@ -32,7 +32,7 @@ public class ItemHandlerWrapper implements IInventory, Iterable<ItemStack>
     }
 
     @Override
-    public int getSizeInventory()
+    public int getContainerSize()
     {
         return inner.getSlots();
     }
@@ -49,44 +49,44 @@ public class ItemHandlerWrapper implements IInventory, Iterable<ItemStack>
     }
 
     @Override
-    public ItemStack getStackInSlot(int index)
+    public ItemStack getItem(int index)
     {
         return inner.getStackInSlot(index);
     }
 
     @Override
-    public ItemStack decrStackSize(int index, int count)
+    public ItemStack removeItem(int index, int count)
     {
         return inner.extractItem(index, count, false);
     }
 
     @Override
-    public ItemStack removeStackFromSlot(int index)
+    public ItemStack removeItemNoUpdate(int index)
     {
         return inner.extractItem(index, 64, false);
     }
 
     @Override
-    public void setInventorySlotContents(int index, ItemStack stack)
+    public void setItem(int index, ItemStack stack)
     {
         inner.setStackInSlot(index, stack);
     }
 
     @Override
-    public void markDirty()
+    public void setChanged()
     {
     }
 
     @Override
-    public boolean isUsableByPlayer(PlayerEntity player)
+    public boolean stillValid(Player player)
     {
         if (location == null)
             return true;
-        return player.getPositionVec().distanceTo(location.get()) <= distance;
+        return player.position().distanceTo(location.get()) <= distance;
     }
 
     @Override
-    public void clear()
+    public void clearContent()
     {
         for (int i = 0; i < inner.getSlots(); i++)
         {
@@ -109,11 +109,11 @@ public class ItemHandlerWrapper implements IInventory, Iterable<ItemStack>
             @Override
             protected ItemStack computeNext()
             {
-                if (current >= getSizeInventory())
+                if (current >= getContainerSize())
                 {
                     return endOfData();
                 }
-                ItemStack stack = getStackInSlot(current++);
+                ItemStack stack = getItem(current++);
                 return stack;
             }
         };

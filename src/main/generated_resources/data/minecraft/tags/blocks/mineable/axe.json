@@ -1,0 +1,23 @@
+{
+  "replace": false,
+  "values": [
+    "woodworking:oak_chopping_block",
+    "woodworking:chipped_oak_chopping_block",
+    "woodworking:damaged_oak_chopping_block",
+    "woodworking:birch_chopping_block",
+    "woodworking:chipped_birch_chopping_block",
+    "woodworking:damaged_birch_chopping_block",
+    "woodworking:spruce_chopping_block",
+    "woodworking:chipped_spruce_chopping_block",
+    "woodworking:damaged_spruce_chopping_block",
+    "woodworking:jungle_chopping_block",
+    "woodworking:chipped_jungle_chopping_block",
+    "woodworking:damaged_jungle_chopping_block",
+    "woodworking:dark_oak_chopping_block",
+    "woodworking:chipped_dark_oak_chopping_block",
+    "woodworking:damaged_dark_oak_chopping_block",
+    "woodworking:acacia_chopping_block",
+    "woodworking:chipped_acacia_chopping_block",
+    "woodworking:damaged_acacia_chopping_block"
+  ]
+}

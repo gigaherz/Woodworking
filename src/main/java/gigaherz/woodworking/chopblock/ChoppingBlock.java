@@ -3,28 +3,33 @@ package gigaherz.woodworking.chopblock;
 import gigaherz.woodworking.ConfigManager;
 import gigaherz.woodworking.WoodworkingMod;
 import gigaherz.woodworking.api.ChoppingRecipe;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.block.Blocks;
-import net.minecraft.enchantment.EnchantmentHelper;
-import net.minecraft.enchantment.Enchantments;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.inventory.InventoryHelper;
-import net.minecraft.item.ItemStack;
-import net.minecraft.particles.ItemParticleData;
-import net.minecraft.particles.ParticleTypes;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.ActionResult;
-import net.minecraft.util.ActionResultType;
-import net.minecraft.util.Hand;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.BlockRayTraceResult;
-import net.minecraft.util.math.shapes.ISelectionContext;
-import net.minecraft.util.math.shapes.VoxelShape;
-import net.minecraft.world.IBlockReader;
-import net.minecraft.world.World;
-import net.minecraft.world.server.ServerWorld;
-import net.minecraftforge.common.ToolType;
+import net.minecraft.world.item.Tier;
+import net.minecraft.world.item.TieredItem;
+import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.EntityBlock;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.Containers;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.particles.ItemParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.InteractionResultHolder;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.world.phys.shapes.VoxelShape;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraftforge.common.ToolAction;
+import net.minecraftforge.common.ToolActions;
 import net.minecraftforge.event.entity.player.PlayerInteractEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
@@ -35,54 +40,48 @@ import javax.annotation.Nullable;
 import java.util.function.Supplier;
 
 @Mod.EventBusSubscriber(modid = WoodworkingMod.MODID)
-public class ChoppingBlock extends Block
+public class ChoppingBlock extends Block implements EntityBlock
 {
-    protected static final VoxelShape SHAPE = Block.makeCuboidShape(0, 0, 0, 16, 8, 16);
+    protected static final VoxelShape SHAPE = Block.box(0, 0, 0, 16, 8, 16);
 
     private final Supplier<BlockState> breaksInto;
 
     public ChoppingBlock(@Nullable Supplier<BlockState> breaksInto, Properties properties)
     {
         super(properties);
-        this.breaksInto = breaksInto != null ? breaksInto : (() -> Blocks.AIR.getDefaultState());
-    }
-
-    @Override
-    public boolean hasTileEntity(BlockState state)
-    {
-        return true;
+        this.breaksInto = breaksInto != null ? breaksInto : (() -> Blocks.AIR.defaultBlockState());
     }
 
     @Nullable
     @Override
-    public TileEntity createTileEntity(BlockState state, IBlockReader world)
+    public BlockEntity newBlockEntity(BlockPos blockPos, BlockState blockState)
     {
-        return new ChoppingBlockTileEntity();
+        return new ChoppingBlockTileEntity(blockPos, blockState);
     }
 
     @Deprecated
     @Override
-    public VoxelShape getShape(BlockState state, IBlockReader worldIn, BlockPos pos, ISelectionContext context)
+    public VoxelShape getShape(BlockState state, BlockGetter worldIn, BlockPos pos, CollisionContext context)
     {
         return SHAPE;
     }
 
     @Deprecated
     @Override
-    public ActionResultType onBlockActivated(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand hand, BlockRayTraceResult blockRayTraceResult)
+    public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand hand, BlockHitResult blockRayTraceResult)
     {
-        ItemStack heldItem = player.getHeldItem(hand);
+        ItemStack heldItem = player.getItemInHand(hand);
 
-        if (worldIn.isRemote)
+        if (worldIn.isClientSide)
         {
             return (heldItem.getCount() <= 0) || ChoppingRecipe.getRecipe(worldIn, pos, heldItem).isPresent() ?
-                    ActionResultType.SUCCESS : ActionResultType.PASS;
+                    InteractionResult.SUCCESS : InteractionResult.PASS;
         }
 
-        TileEntity tileEntity = worldIn.getTileEntity(pos);
+        BlockEntity tileEntity = worldIn.getBlockEntity(pos);
 
-        if (!(tileEntity instanceof ChoppingBlockTileEntity) || player.isSneaking())
-            return ActionResultType.PASS;
+        if (!(tileEntity instanceof ChoppingBlockTileEntity) || player.isShiftKeyDown())
+            return InteractionResult.PASS;
 
         ChoppingBlockTileEntity chopper = (ChoppingBlockTileEntity) tileEntity;
 
@@ -92,10 +91,10 @@ public class ChoppingBlock extends Block
             if (extracted.getCount() > 0)
             {
                 ItemHandlerHelper.giveItemToPlayer(player, extracted);
-                return ActionResultType.SUCCESS;
+                return InteractionResult.SUCCESS;
             }
 
-            return ActionResultType.PASS;
+            return InteractionResult.PASS;
         }
 
         if (ChoppingRecipe.getRecipe(worldIn, pos, heldItem)
@@ -106,25 +105,25 @@ public class ChoppingBlock extends Block
             {
                 if (remaining.getCount() > 0)
                 {
-                    player.setHeldItem(hand, remaining);
+                    player.setItemInHand(hand, remaining);
                 }
                 else
                 {
-                    player.setHeldItem(hand, ItemStack.EMPTY);
+                    player.setItemInHand(hand, ItemStack.EMPTY);
                 }
             }
             return remaining.getCount() < heldItem.getCount() ?
-                    ActionResultType.SUCCESS : ActionResultType.PASS;
+                    InteractionResult.SUCCESS : InteractionResult.PASS;
         }
 
-        return ActionResultType.PASS;
+        return InteractionResult.PASS;
     }
 
     @SubscribeEvent
     public static void interactEvent(PlayerInteractEvent.LeftClickBlock event)
     {
-        PlayerEntity player = event.getPlayer();
-        World world = player.world;
+        Player player = event.getPlayer();
+        Level world = player.level;
         BlockPos pos = event.getPos();
         BlockState state = world.getBlockState(pos);
         Block block = state.getBlock();
@@ -135,44 +134,44 @@ public class ChoppingBlock extends Block
         }
     }
 
-    private boolean interceptClick(World worldIn, BlockPos pos, BlockState state, PlayerEntity playerIn)
+    private boolean interceptClick(Level worldIn, BlockPos pos, BlockState state, Player playerIn)
     {
-        TileEntity tileentity = worldIn.getTileEntity(pos);
+        BlockEntity tileentity = worldIn.getBlockEntity(pos);
 
-        if (!(tileentity instanceof ChoppingBlockTileEntity))
+        if (!(tileentity instanceof ChoppingBlockTileEntity chopper))
             return false;
 
-        ChoppingBlockTileEntity chopper = (ChoppingBlockTileEntity) tileentity;
         if (chopper.getSlotInventory().getStackInSlot(0).getCount() <= 0)
             return false;
 
-        if (worldIn.isRemote)
+        if (worldIn.isClientSide)
             return true;
 
-        ItemStack heldItem = playerIn.getHeldItem(Hand.MAIN_HAND);
+        ItemStack heldItem = playerIn.getItemInHand(InteractionHand.MAIN_HAND);
 
-        int harvestLevel = heldItem.getItem().getHarvestLevel(heldItem, ToolType.AXE, playerIn, null);
-        ActionResult<ItemStack> result = chopper.chop(playerIn, harvestLevel, EnchantmentHelper.getEnchantmentLevel(Enchantments.FORTUNE, heldItem));
-        if (result.getType() == ActionResultType.SUCCESS)
+        boolean canAxe = heldItem.getItem().canPerformAction(heldItem, ToolActions.AXE_DIG);
+        Tier tier = canAxe && heldItem.getItem() instanceof TieredItem tieredItem ? tieredItem.getTier() : null;
+        InteractionResultHolder<ItemStack> result = chopper.chop(playerIn, tier, EnchantmentHelper.getItemEnchantmentLevel(Enchantments.BLOCK_FORTUNE, heldItem));
+        if (result.getResult() == InteractionResult.SUCCESS)
         {
-            if (worldIn.rand.nextFloat() < ConfigManager.SERVER.choppingDegradeChance.get())
+            if (worldIn.random.nextFloat() < ConfigManager.SERVER.choppingDegradeChance.get())
             {
-                worldIn.setBlockState(pos, breaksInto.get());
+                worldIn.setBlockAndUpdate(pos, breaksInto.get());
             }
 
             if (ConfigManager.SERVER.choppingExhaustion.get() > 0)
-                playerIn.addExhaustion(ConfigManager.SERVER.choppingExhaustion.get().floatValue());
+                playerIn.causeFoodExhaustion(ConfigManager.SERVER.choppingExhaustion.get().floatValue());
 
-            if (heldItem.getCount() > 0 && !playerIn.abilities.isCreativeMode)
+            if (heldItem.getCount() > 0 && !playerIn.getAbilities().instabuild)
             {
-                heldItem.damageItem(1, playerIn, (stack) -> {
-                    stack.sendBreakAnimation(Hand.MAIN_HAND);
+                heldItem.hurtAndBreak(1, playerIn, (stack) -> {
+                    stack.broadcastBreakEvent(InteractionHand.MAIN_HAND);
                 });
             }
         }
-        if (result.getType() != ActionResultType.PASS)
+        if (result.getResult() != InteractionResult.PASS)
         {
-            ((ServerWorld) worldIn).spawnParticle(new ItemParticleData(ParticleTypes.ITEM, result.getResult()),
+            ((ServerLevel) worldIn).sendParticles(new ItemParticleOption(ParticleTypes.ITEM, result.getObject()),
                     pos.getX() + 0.5, pos.getY() + 0.6, pos.getZ() + 0.5, 8,
                     0, 0.1, 0, 0.02);
         }
@@ -182,22 +181,22 @@ public class ChoppingBlock extends Block
 
     @Deprecated
     @Override
-    public void onReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving)
+    public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving)
     {
         if (newState.getBlock() != state.getBlock())
         {
-            TileEntity tileentity = worldIn.getTileEntity(pos);
+            BlockEntity tileentity = worldIn.getBlockEntity(pos);
 
             if (tileentity instanceof ChoppingBlockTileEntity)
             {
                 dropInventoryItems(worldIn, pos, ((ChoppingBlockTileEntity) tileentity).getSlotInventory());
-                worldIn.updateComparatorOutputLevel(pos, this);
+                worldIn.updateNeighbourForOutputSignal(pos, this);
             }
-            super.onReplaced(state, worldIn, pos, newState, isMoving);
+            super.onRemove(state, worldIn, pos, newState, isMoving);
         }
     }
 
-    public static void dropInventoryItems(World worldIn, BlockPos pos, IItemHandler inventory)
+    public static void dropInventoryItems(Level worldIn, BlockPos pos, IItemHandler inventory)
     {
         for (int i = 0; i < inventory.getSlots(); ++i)
         {
@@ -205,7 +204,7 @@ public class ChoppingBlock extends Block
 
             if (itemstack.getCount() > 0)
             {
-                InventoryHelper.spawnItemStack(worldIn, (double) pos.getX(), (double) pos.getY(), (double) pos.getZ(), itemstack);
+                Containers.dropItemStack(worldIn, (double) pos.getX(), (double) pos.getY(), (double) pos.getZ(), itemstack);
             }
         }
     }

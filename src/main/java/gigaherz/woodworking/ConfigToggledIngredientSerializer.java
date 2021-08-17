@@ -3,14 +3,14 @@ package gigaherz.woodworking;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import it.unimi.dsi.fastutil.ints.IntList;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.Ingredient;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.util.GsonHelper;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.crafting.CraftingHelper;
 import net.minecraftforge.common.crafting.IIngredientSerializer;
-import net.minecraftforge.fml.common.ObfuscationReflectionHelper;
+import net.minecraftforge.fml.util.ObfuscationReflectionHelper;
 
 import javax.annotation.Nullable;
 import java.lang.reflect.InvocationTargetException;
@@ -23,7 +23,7 @@ public class ConfigToggledIngredientSerializer implements IIngredientSerializer<
     public static ConfigToggledIngredientSerializer INSTANCE = new ConfigToggledIngredientSerializer();
 
     @Override
-    public Ingredient parse(PacketBuffer buffer)
+    public Ingredient parse(FriendlyByteBuf buffer)
     {
         return Ingredient.EMPTY;
     }
@@ -31,8 +31,8 @@ public class ConfigToggledIngredientSerializer implements IIngredientSerializer<
     @Override
     public Ingredient parse(JsonObject json)
     {
-        String categoryName = JSONUtils.getString(json, "category");
-        String keyName = JSONUtils.getString(json, "key");
+        String categoryName = GsonHelper.getAsString(json, "category");
+        String keyName = GsonHelper.getAsString(json, "key");
 
         return new ConfigToggledIngredient(
                 categoryName, keyName,
@@ -42,7 +42,7 @@ public class ConfigToggledIngredientSerializer implements IIngredientSerializer<
     }
 
     @Override
-    public void write(PacketBuffer buffer, Ingredient ingredient)
+    public void write(FriendlyByteBuf buffer, Ingredient ingredient)
     {
         // Not used.
     }
@@ -69,9 +69,9 @@ public class ConfigToggledIngredientSerializer implements IIngredientSerializer<
         }
 
         @Override
-        public ItemStack[] getMatchingStacks()
+        public ItemStack[] getItems()
         {
-            return getConfigValue() ? then.getMatchingStacks() : other.getMatchingStacks();
+            return getConfigValue() ? then.getItems() : other.getItems();
         }
 
         @Override
@@ -81,15 +81,15 @@ public class ConfigToggledIngredientSerializer implements IIngredientSerializer<
         }
 
         @Override
-        public IntList getValidItemStacksPacked()
+        public IntList getStackingIds()
         {
-            return getConfigValue() ? then.getValidItemStacksPacked() : other.getValidItemStacksPacked();
+            return getConfigValue() ? then.getStackingIds() : other.getStackingIds();
         }
 
         @Override
-        public boolean hasNoMatchingItems()
+        public boolean isEmpty()
         {
-            return getConfigValue() ? then.hasNoMatchingItems() : other.hasNoMatchingItems();
+            return getConfigValue() ? then.isEmpty() : other.isEmpty();
         }
 
         private static Method invalidateMethod = ObfuscationReflectionHelper.findMethod(Ingredient.class, "invalidate");
@@ -121,14 +121,14 @@ public class ConfigToggledIngredientSerializer implements IIngredientSerializer<
         }
 
         @Override
-        public JsonElement serialize()
+        public JsonElement toJson()
         {
             JsonObject obj = new JsonObject();
             obj.addProperty("type", NAME.toString());
             obj.addProperty("category", categoryName);
             obj.addProperty("key", keyName);
-            obj.add("then", then.serialize());
-            obj.add("else", other.serialize());
+            obj.add("then", then.toJson());
+            obj.add("else", other.toJson());
             return obj;
         }
     }

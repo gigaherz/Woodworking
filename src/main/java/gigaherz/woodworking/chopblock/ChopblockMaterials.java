@@ -1,11 +1,11 @@
 package gigaherz.woodworking.chopblock;
 
 import gigaherz.woodworking.WoodworkingBlocks;
-import net.minecraft.util.IStringSerializable;
-import net.minecraft.util.ResourceLocation;
-import net.minecraftforge.fml.RegistryObject;
+import net.minecraft.util.StringRepresentable;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.fmllegacy.RegistryObject;
 
-public enum ChopblockMaterials implements IStringSerializable
+public enum ChopblockMaterials implements StringRepresentable
 {
     OAK("oak", WoodworkingBlocks.OAK_CHOPPING_BLOCK, WoodworkingBlocks.CHIPPED_OAK_CHOPPING_BLOCK, WoodworkingBlocks.DAMAGED_OAK_CHOPPING_BLOCK, "oak_logs"),
     BIRCH("birch", WoodworkingBlocks.BIRCH_CHOPPING_BLOCK, WoodworkingBlocks.CHIPPED_BIRCH_CHOPPING_BLOCK, WoodworkingBlocks.DAMAGED_BIRCH_CHOPPING_BLOCK, "birch_logs"),
@@ -30,7 +30,7 @@ public enum ChopblockMaterials implements IStringSerializable
     }
 
     @Override
-    public String getString()
+    public String getSerializedName()
     {
         return this.name;
     }

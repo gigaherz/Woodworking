@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ll"
+  ],
+  "key": {
+    "l": {
+      "tag": "minecraft:birch_logs"
+    }
+  },
+  "result": {
+    "item": "woodworking:birch_chopping_block"
+  }
+}

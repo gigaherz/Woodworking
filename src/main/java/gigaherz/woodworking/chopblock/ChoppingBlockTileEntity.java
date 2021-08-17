@@ -3,22 +3,22 @@ package gigaherz.woodworking.chopblock;
 import gigaherz.woodworking.WoodworkingTileEntityTypes;
 import gigaherz.woodworking.api.ChoppingContext;
 import gigaherz.woodworking.api.ChoppingRecipe;
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.network.NetworkManager;
-import net.minecraft.network.play.server.SUpdateTileEntityPacket;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityType;
-import net.minecraft.util.*;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.vector.Vector3d;
-import net.minecraft.world.World;
+import net.minecraft.world.item.Tier;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.Connection;
+import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fml.RegistryObject;
+import net.minecraftforge.fmllegacy.RegistryObject;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
@@ -29,9 +29,15 @@ import javax.annotation.Nullable;
 import java.util.Optional;
 import java.util.Random;
 
-public class ChoppingBlockTileEntity extends TileEntity
+import net.minecraft.core.Direction;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.InteractionResultHolder;
+
+public class ChoppingBlockTileEntity extends BlockEntity
 {
-    public static final RegistryObject<TileEntityType<ChoppingBlockTileEntity>> TYPE = WoodworkingTileEntityTypes.CHOPPING_BLOCK_TILE_ENTITY_TYPE;
+    public static final RegistryObject<BlockEntityType<ChoppingBlockTileEntity>> TYPE = WoodworkingTileEntityTypes.CHOPPING_BLOCK_TILE_ENTITY_TYPE;
 
     private static final Random RANDOM = new Random();
 
@@ -46,7 +52,7 @@ public class ChoppingBlockTileEntity extends TileEntity
         @Override
         public ItemStack insertItem(int slot, ItemStack stack, boolean simulate)
         {
-            if (!ChoppingRecipe.getRecipe(world, null, stack)
+            if (!ChoppingRecipe.getRecipe(level, null, stack)
                     .isPresent())
                 return stack;
             return super.insertItem(slot, stack, simulate);
@@ -56,12 +62,12 @@ public class ChoppingBlockTileEntity extends TileEntity
         protected void onContentsChanged(int slot)
         {
             breakingProgress = 0;
-            if (world != null)
+            if (level != null)
             {
-                BlockState state = world.getBlockState(pos);
-                world.notifyBlockUpdate(pos, state, state, 3);
+                BlockState state = level.getBlockState(worldPosition);
+                level.sendBlockUpdated(worldPosition, state, state, 3);
             }
-            markDirty();
+            setChanged();
         }
     };
     private final LazyOptional<IItemHandler> slotInventoryGetter = LazyOptional.of(() -> slotInventory);
@@ -69,9 +75,9 @@ public class ChoppingBlockTileEntity extends TileEntity
     // measured in the number of ticks it will take to return to 0
     private int breakingProgress = 0;
 
-    public ChoppingBlockTileEntity()
+    public ChoppingBlockTileEntity(BlockPos pos, BlockState state)
     {
-        super(TYPE.get());
+        super(TYPE.get(), pos, state);
     }
 
     @Override
@@ -84,95 +90,95 @@ public class ChoppingBlockTileEntity extends TileEntity
     }
 
     @Override
-    public void read(BlockState state, CompoundNBT compound)
+    public void load(CompoundTag compound)
     {
-        super.read(state, compound);
-        CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.readNBT(slotInventory, null, compound.get("Inventory"));
+        super.load(compound);
+        slotInventory.deserializeNBT(compound.getCompound("Inventory"));
     }
 
     @Override
-    public CompoundNBT write(CompoundNBT compound)
+    public CompoundTag save(CompoundTag compound)
     {
-        compound = super.write(compound);
-        compound.put("Inventory", CapabilityItemHandler.ITEM_HANDLER_CAPABILITY.writeNBT(slotInventory, null));
+        compound = super.save(compound);
+        compound.put("Inventory", slotInventory.serializeNBT());
         return compound;
     }
 
     @Override
-    public CompoundNBT getUpdateTag()
+    public CompoundTag getUpdateTag()
     {
-        CompoundNBT compound = new CompoundNBT();
+        CompoundTag compound = new CompoundTag();
         compound.put("Item", slotInventory.getStackInSlot(0).serializeNBT());
         return compound;
     }
 
     @Override
-    public void handleUpdateTag(BlockState state, CompoundNBT tag)
+    public void handleUpdateTag(CompoundTag tag)
     {
-        slotInventory.setStackInSlot(0, ItemStack.read(tag.getCompound("Item")));
+        slotInventory.setStackInSlot(0, ItemStack.of(tag.getCompound("Item")));
     }
 
     @Nullable
     @Override
-    public SUpdateTileEntityPacket getUpdatePacket()
+    public ClientboundBlockEntityDataPacket getUpdatePacket()
     {
-        return new SUpdateTileEntityPacket(pos, 0, getUpdateTag());
+        return new ClientboundBlockEntityDataPacket(worldPosition, 0, getUpdateTag());
     }
 
     @Override
-    public void onDataPacket(NetworkManager net, SUpdateTileEntityPacket pkt)
+    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt)
     {
-        handleUpdateTag(getBlockState(), pkt.getNbtCompound());
+        handleUpdateTag(pkt.getTag());
     }
 
-    public ActionResult<ItemStack> chop(PlayerEntity player, int axeLevel, int fortune)
+    public InteractionResultHolder<ItemStack> chop(Player player, Tier axeLevel, int fortune)
     {
-        ActionResultType completed = ActionResultType.PASS;
+        InteractionResult completed = InteractionResult.PASS;
         ItemStack containedItem = slotInventory.getStackInSlot(0).copy();
         if (containedItem.getCount() > 0)
         {
-            ChoppingContext ctx = new ChoppingContext(slotInventory, player, () -> Vector3d.copyCentered(pos), axeLevel, fortune, RANDOM);
+            ChoppingContext ctx = new ChoppingContext(slotInventory, player, () -> Vec3.atCenterOf(worldPosition), axeLevel, fortune, RANDOM);
 
-            Optional<ChoppingRecipe> foundRecipe = ChoppingRecipe.getRecipe(world, ctx);
+            Optional<ChoppingRecipe> foundRecipe = ChoppingRecipe.getRecipe(level, ctx);
 
             completed = foundRecipe.map(recipe -> {
 
-                ActionResultType completed2 = ActionResultType.PASS;
+                InteractionResult completed2 = InteractionResult.PASS;
 
                 breakingProgress += recipe.getHitProgress(axeLevel);
                 if (breakingProgress >= 200)
                 {
-                    if (!world.isRemote)
+                    if (!level.isClientSide)
                     {
-                        ItemStack out = recipe.getCraftingResult(ctx);
+                        ItemStack out = recipe.assemble(ctx);
 
                         if (out.getCount() > 0)
                         {
                             //ItemHandlerHelper.giveItemToPlayer(player, out);
                             ItemHandlerHelper.giveItemToPlayer(player, out);
 
-                            completed2 = ActionResultType.SUCCESS;
+                            completed2 = InteractionResult.SUCCESS;
                         }
                         else
                         {
-                            completed2 = ActionResultType.FAIL;
+                            completed2 = InteractionResult.FAIL;
                         }
                     }
-                    world.playSound(player, pos, SoundEvents.BLOCK_WOOD_BREAK, SoundCategory.BLOCKS, 1.0f, 1.0f);
+                    level.playSound(player, worldPosition, SoundEvents.WOOD_BREAK, SoundSource.BLOCKS, 1.0f, 1.0f);
                     slotInventory.setStackInSlot(0, ItemStack.EMPTY);
                     breakingProgress = 0;
                 }
 
-                BlockState state = world.getBlockState(pos);
-                world.notifyBlockUpdate(pos, state, state, 3);
+                BlockState state = level.getBlockState(worldPosition);
+                level.sendBlockUpdated(worldPosition, state, state, 3);
 
                 return completed2;
-            }).orElse(ActionResultType.PASS);
+            }).orElse(InteractionResult.PASS);
         }
-        return new ActionResult<>(completed, containedItem);
+        return new InteractionResultHolder<>(completed, containedItem);
     }
 
-    public static void spawnItemStack(World worldIn, double x, double y, double z, ItemStack stack)
+    public static void spawnItemStack(Level worldIn, double x, double y, double z, ItemStack stack)
     {
         while (stack.getCount() > 0)
         {
@@ -187,7 +193,7 @@ public class ChoppingBlockTileEntity extends TileEntity
             copy.setCount(i);
             stack.grow(-i);
 
-            Block.spawnAsEntity(worldIn, new BlockPos(x, y, z), stack);
+            Block.popResource(worldIn, new BlockPos(x, y, z), stack);
         }
     }
 

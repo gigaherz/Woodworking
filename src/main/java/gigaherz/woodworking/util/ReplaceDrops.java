@@ -5,12 +5,12 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonSyntaxException;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.Ingredient;
-import net.minecraft.loot.LootContext;
-import net.minecraft.loot.conditions.ILootCondition;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.level.storage.loot.LootContext;
+import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
+import net.minecraft.util.GsonHelper;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraftforge.common.crafting.CraftingHelper;
 import net.minecraftforge.common.loot.GlobalLootModifierSerializer;
 import net.minecraftforge.common.loot.LootModifier;
@@ -23,7 +23,7 @@ public class ReplaceDrops extends LootModifier
 {
     private final List<Replacement> replacements;
 
-    public ReplaceDrops(ILootCondition[] lootConditions, List<Replacement> replacements)
+    public ReplaceDrops(LootItemCondition[] lootConditions, List<Replacement> replacements)
     {
         super(lootConditions);
         this.replacements = replacements;
@@ -65,11 +65,11 @@ public class ReplaceDrops extends LootModifier
     public static class Serializer extends GlobalLootModifierSerializer<ReplaceDrops>
     {
         @Override
-        public ReplaceDrops read(ResourceLocation location, JsonObject json, ILootCondition[] conditions)
+        public ReplaceDrops read(ResourceLocation location, JsonObject json, LootItemCondition[] conditions)
         {
             List<Replacement> replacements = Lists.newArrayList();
 
-            for(JsonElement e : JSONUtils.getJsonArray(json, "replacements"))
+            for(JsonElement e : GsonHelper.getAsJsonArray(json, "replacements"))
             {
                 JsonObject repl = e.getAsJsonObject();
 
@@ -107,7 +107,7 @@ public class ReplaceDrops extends LootModifier
                 for(Replacement repl : instance.replacements)
                 {
                     JsonObject replacement = new JsonObject();
-                    replacement.add("input", repl.input.serialize());
+                    replacement.add("input", repl.input.toJson());
                     JsonArray outputs = new JsonArray();
                     for(Result r : repl.outputs)
                     {
@@ -149,8 +149,8 @@ public class ReplaceDrops extends LootModifier
                 if (q.isJsonObject())
                 {
                     JsonObject qq = q.getAsJsonObject();
-                    min = JSONUtils.getInt(qq, "min", 0);
-                    max = JSONUtils.getInt(qq, "max", min);
+                    min = GsonHelper.getAsInt(qq, "min", 0);
+                    max = GsonHelper.getAsInt(qq, "max", min);
                 }
                 else if(q.isJsonPrimitive())
                 {

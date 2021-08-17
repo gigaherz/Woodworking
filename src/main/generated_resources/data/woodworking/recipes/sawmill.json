@@ -1,0 +1,22 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ddd",
+    "iii",
+    "ccc"
+  ],
+  "key": {
+    "d": {
+      "tag": "forge:gems/diamond"
+    },
+    "i": {
+      "tag": "forge:ingots/iron"
+    },
+    "c": {
+      "tag": "minecraft:stone_crafting_materials"
+    }
+  },
+  "result": {
+    "item": "woodworking:sawmill"
+  }
+}

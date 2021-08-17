@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ll"
+  ],
+  "key": {
+    "l": {
+      "tag": "minecraft:acacia_logs"
+    }
+  },
+  "result": {
+    "item": "woodworking:acacia_chopping_block"
+  }
+}

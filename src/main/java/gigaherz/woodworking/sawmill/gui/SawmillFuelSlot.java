@@ -1,8 +1,8 @@
 package gigaherz.woodworking.sawmill.gui;
 
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.tileentity.AbstractFurnaceTileEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.SlotItemHandler;
 
@@ -14,14 +14,14 @@ public class SawmillFuelSlot extends SlotItemHandler
     }
 
     @Override
-    public boolean isItemValid(ItemStack stack)
+    public boolean mayPlace(ItemStack stack)
     {
-        return AbstractFurnaceTileEntity.isFuel(stack);
+        return AbstractFurnaceBlockEntity.isFuel(stack);
     }
 
-    public int getItemStackLimit(ItemStack stack)
+    public int getMaxStackSize(ItemStack stack)
     {
-        return isBucket(stack) ? 1 : super.getItemStackLimit(stack);
+        return isBucket(stack) ? 1 : super.getMaxStackSize(stack);
     }
 
     public static boolean isBucket(ItemStack stack)

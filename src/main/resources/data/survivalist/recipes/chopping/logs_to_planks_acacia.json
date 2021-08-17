@@ -1,7 +1,0 @@
-{
-  "type": "woodworking:chopping",
-  "ingredient": {
-    "tag": "minecraft:acacia_logs"
-  },
-  "result": "minecraft:acacia_planks"
-}

@@ -4,22 +4,22 @@ import com.google.gson.JsonDeserializationContext;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonPrimitive;
 import com.google.gson.JsonSerializationContext;
-import net.minecraft.loot.ILootSerializer;
-import net.minecraft.loot.LootConditionType;
-import net.minecraft.loot.LootContext;
-import net.minecraft.loot.conditions.ILootCondition;
-import net.minecraft.loot.conditions.LootConditionManager;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.level.storage.loot.Serializer;
+import net.minecraft.world.level.storage.loot.predicates.LootItemConditionType;
+import net.minecraft.world.level.storage.loot.LootContext;
+import net.minecraft.world.level.storage.loot.predicates.LootItemCondition;
+import net.minecraft.world.level.storage.loot.predicates.LootItemConditions;
+import net.minecraft.util.GsonHelper;
+import net.minecraft.resources.ResourceLocation;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-public class ConfigurationLootCondition implements ILootCondition
+public class ConfigurationLootCondition implements LootItemCondition
 {
     private static final Logger LOGGER = LogManager.getLogger();
 
     public static final ResourceLocation NAME = WoodworkingMod.location("configuration");
-    public static final LootConditionType TYPE = LootConditionManager.register(NAME.toString(), new ConfigurationLootCondition.Serializer());
+    public static final LootItemConditionType TYPE = LootItemConditions.register(NAME.toString(), new ConfigurationLootCondition.CSerializer());
 
     private final String categoryName;
     private final String keyName;
@@ -36,7 +36,7 @@ public class ConfigurationLootCondition implements ILootCondition
     }
 
     @Override
-    public LootConditionType getConditionType()
+    public LootItemConditionType getType()
     {
         return TYPE;
     }
@@ -47,7 +47,7 @@ public class ConfigurationLootCondition implements ILootCondition
         return ConfigManager.getConfigBoolean("common", categoryName, keyName);
     }
 
-    public static class Serializer implements ILootSerializer<ConfigurationLootCondition>
+    public static class CSerializer implements Serializer<ConfigurationLootCondition>
     {
         @Override
         public void serialize(JsonObject json, ConfigurationLootCondition value, JsonSerializationContext ctx)
@@ -59,8 +59,8 @@ public class ConfigurationLootCondition implements ILootCondition
         @Override
         public ConfigurationLootCondition deserialize(JsonObject json, JsonDeserializationContext ctx)
         {
-            String categoryName = JSONUtils.getString(json, "category");
-            String keyName = JSONUtils.getString(json, "key");
+            String categoryName = GsonHelper.getAsString(json, "category");
+            String keyName = GsonHelper.getAsString(json, "key");
 
             return new ConfigurationLootCondition(categoryName, keyName);
         }

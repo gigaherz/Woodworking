@@ -4,21 +4,16 @@ import com.google.common.collect.Lists;
 import gigaherz.woodworking.api.ChoppingContext;
 import gigaherz.woodworking.api.ChoppingRecipe;
 import gigaherz.woodworking.sawmill.SawmillTileEntity;
-import net.minecraft.client.util.RecipeBookCategories;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.container.ContainerType;
-import net.minecraft.inventory.container.RecipeBookContainer;
-import net.minecraft.inventory.container.Slot;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.IRecipe;
-import net.minecraft.item.crafting.RecipeBookCategory;
-import net.minecraft.item.crafting.RecipeItemHelper;
-import net.minecraft.tileentity.AbstractFurnaceTileEntity;
-import net.minecraft.util.IIntArray;
-import net.minecraft.util.IntArray;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
+import net.minecraft.client.RecipeBookCategories;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.*;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.entity.player.StackedContents;
+import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.items.IItemHandlerModifiable;
 import net.minecraftforge.items.ItemStackHandler;
 import net.minecraftforge.items.SlotItemHandler;
@@ -28,36 +23,36 @@ import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Random;
 
-public class SawmillContainer extends RecipeBookContainer<ChoppingContext>
+public class SawmillContainer extends AbstractContainerMenu
 {
     private static final Random RANDOM = new Random();
 
     @ObjectHolder("woodworking:sawmill")
-    public static ContainerType<SawmillContainer> TYPE;
+    public static MenuType<SawmillContainer> TYPE;
 
     private final ChoppingContext wrappedInventory;
-    private final World world;
+    private final Level world;
     private final BlockPos pos;
-    private IIntArray fields;
+    private ContainerData fields;
 
-    public SawmillContainer(int windowId, PlayerInventory playerInventory)
+    public SawmillContainer(int windowId, Inventory playerInventory)
     {
-        this(windowId, playerInventory, new ItemStackHandler(3), null, new IntArray(4));
+        this(windowId, playerInventory, new ItemStackHandler(3), null, new SimpleContainerData(4));
     }
 
-    public SawmillContainer(int windowId, SawmillTileEntity tileEntity, PlayerInventory playerInventory)
+    public SawmillContainer(int windowId, SawmillTileEntity tileEntity, Inventory playerInventory)
     {
-        this(windowId, playerInventory, tileEntity.inventory, tileEntity.getPos(), tileEntity);
+        this(windowId, playerInventory, tileEntity.inventory, tileEntity.getBlockPos(), tileEntity);
     }
 
-    public SawmillContainer(int windowId, PlayerInventory playerInventory, IItemHandlerModifiable inventory, @Nullable BlockPos pos, IIntArray dryTimes)
+    public SawmillContainer(int windowId, Inventory playerInventory, IItemHandlerModifiable inventory, @Nullable BlockPos pos, ContainerData dryTimes)
     {
         super(TYPE, windowId);
 
         fields = dryTimes;
 
-        wrappedInventory = new ChoppingContext(inventory, null, null, 0, 0, RANDOM);
-        world = playerInventory.player.world;
+        wrappedInventory = new ChoppingContext(inventory, null, null, null, 0, RANDOM);
+        world = playerInventory.player.level;
         this.pos = pos;
 
         addSlot(new SlotItemHandler(inventory, 0, 56, 17));
@@ -66,10 +61,10 @@ public class SawmillContainer extends RecipeBookContainer<ChoppingContext>
 
         bindPlayerInventory(playerInventory);
 
-        trackIntArray(fields);
+        addDataSlots(fields);
     }
 
-    private void bindPlayerInventory(PlayerInventory playerInventory)
+    private void bindPlayerInventory(Inventory playerInventory)
     {
         for (int i = 0; i < 3; ++i)
         {
@@ -86,7 +81,7 @@ public class SawmillContainer extends RecipeBookContainer<ChoppingContext>
     }
 
     @Override
-    public boolean canInteractWith(PlayerEntity player)
+    public boolean stillValid(Player player)
     {
         return true;
     }
@@ -117,124 +112,66 @@ public class SawmillContainer extends RecipeBookContainer<ChoppingContext>
     }
 
     @Override
-    public void fillStackedContents(RecipeItemHelper helper)
-    {
-        for (ItemStack itemstack : this.wrappedInventory)
-        {
-            helper.accountStack(itemstack);
-        }
-    }
-
-    @Override
-    public void clear()
-    {
-        this.wrappedInventory.clear();
-    }
-
-    @Override
-    public boolean matches(IRecipe<? super ChoppingContext> recipeIn)
-    {
-        return recipeIn.matches(this.wrappedInventory, this.world);
-    }
-
-    @Override
-    public int getOutputSlot()
-    {
-        return 2;
-    }
-
-    @Override
-    public int getWidth()
-    {
-        return 1;
-    }
-
-    @Override
-    public int getHeight()
-    {
-        return 1;
-    }
-
-    @Override
-    public int getSize()
-    {
-        return 3;
-    }
-
-    @Override
-    public List<RecipeBookCategories> getRecipeBookCategories()
-    {
-        return Lists.newArrayList(RecipeBookCategories.CRAFTING_SEARCH);
-        //return Lists.newArrayList(WoodworkingRecipeBookCategories.instance().SAWMILL_SEARCH, WoodworkingRecipeBookCategories.instance().SAWMILL);
-    }
-
-    @Override
-    public RecipeBookCategory func_241850_m()
-    {
-        return RecipeBookCategory.CRAFTING;
-    }
-
-    @Override
-    public ItemStack transferStackInSlot(PlayerEntity playerIn, int index)
+    public ItemStack quickMoveStack(Player playerIn, int index)
     {
         ItemStack itemstack = ItemStack.EMPTY;
-        Slot slot = this.inventorySlots.get(index);
+        Slot slot = this.slots.get(index);
 
-        if (slot != null && slot.getHasStack())
+        if (slot != null && slot.hasItem())
         {
-            ItemStack itemstack1 = slot.getStack();
+            ItemStack itemstack1 = slot.getItem();
             itemstack = itemstack1.copy();
 
             if (index == 2)
             {
-                if (!this.mergeItemStack(itemstack1, 3, 39, true))
+                if (!this.moveItemStackTo(itemstack1, 3, 39, true))
                 {
                     return ItemStack.EMPTY;
                 }
 
-                slot.onSlotChange(itemstack1, itemstack);
+                slot.onQuickCraft(itemstack1, itemstack);
             }
             else if (index != 1 && index != 0)
             {
                 if (ChoppingRecipe.getRecipe(world, pos, itemstack1)
                         .isPresent())
                 {
-                    if (!this.mergeItemStack(itemstack1, 0, 1, false))
+                    if (!this.moveItemStackTo(itemstack1, 0, 1, false))
                     {
                         return ItemStack.EMPTY;
                     }
                 }
-                else if (AbstractFurnaceTileEntity.isFuel(itemstack1))
+                else if (AbstractFurnaceBlockEntity.isFuel(itemstack1))
                 {
-                    if (!this.mergeItemStack(itemstack1, 1, 2, false))
+                    if (!this.moveItemStackTo(itemstack1, 1, 2, false))
                     {
                         return ItemStack.EMPTY;
                     }
                 }
                 else if (index >= 3 && index < 30)
                 {
-                    if (!this.mergeItemStack(itemstack1, 30, 39, false))
+                    if (!this.moveItemStackTo(itemstack1, 30, 39, false))
                     {
                         return ItemStack.EMPTY;
                     }
                 }
-                else if (index >= 30 && index < 39 && !this.mergeItemStack(itemstack1, 3, 30, false))
+                else if (index >= 30 && index < 39 && !this.moveItemStackTo(itemstack1, 3, 30, false))
                 {
                     return ItemStack.EMPTY;
                 }
             }
-            else if (!this.mergeItemStack(itemstack1, 3, 39, false))
+            else if (!this.moveItemStackTo(itemstack1, 3, 39, false))
             {
                 return ItemStack.EMPTY;
             }
 
             if (itemstack1.isEmpty())
             {
-                slot.putStack(ItemStack.EMPTY);
+                slot.set(ItemStack.EMPTY);
             }
             else
             {
-                slot.onSlotChanged();
+                slot.setChanged();
             }
 
             if (itemstack1.getCount() == itemstack.getCount())

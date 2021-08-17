@@ -1,7 +1,0 @@
-{
-  "type": "woodworking:chopping",
-  "ingredient": {
-    "tag": "minecraft:jungle_logs"
-  },
-  "result": "minecraft:jungle_planks"
-}

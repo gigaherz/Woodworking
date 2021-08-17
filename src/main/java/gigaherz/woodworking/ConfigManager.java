@@ -2,16 +2,20 @@ package gigaherz.woodworking;
 
 import com.electronwill.nightconfig.core.Config;
 import com.electronwill.nightconfig.core.InMemoryFormat;
-import it.unimi.dsi.fastutil.ints.Int2DoubleArrayMap;
-import it.unimi.dsi.fastutil.ints.Int2DoubleMap;
+import it.unimi.dsi.fastutil.objects.Object2DoubleMap;
+import it.unimi.dsi.fastutil.objects.Object2DoubleOpenHashMap;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.item.Tier;
 import net.minecraftforge.common.ForgeConfigSpec;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
+import net.minecraftforge.fml.event.config.ModConfigEvent;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -55,18 +59,17 @@ public class ConfigManager
         }
     }
 
-    public static final Int2DoubleMap axeLevelMap = new Int2DoubleArrayMap();
+    public static final Object2DoubleMap<ResourceLocation> axeLevelMap = new Object2DoubleOpenHashMap<>();
 
-    public static double getAxeLevelMultiplier(int axeLevel)
+    public static double getAxeLevelMultiplier(@Nullable Tier axeLevel)
     {
+        if (axeLevel == null)
+            return 1;
+
         if (axeLevelMap.containsKey(axeLevel))
             return axeLevelMap.get(axeLevel);
 
-        double value = 1 + axeLevel;
-
-        axeLevelMap.put(axeLevel, value);
-
-        return value;
+        return 1 + axeLevel.getLevel();
     }
 
     private static final Set<String> warns = new HashSet<>();
@@ -93,7 +96,7 @@ public class ConfigManager
         private static final Pattern AXE_LEVEL_ENTRY_PATTERN = Pattern.compile("^AxeLevel(?<level>[0-9]+)$");
 
         @SubscribeEvent
-        public static void modConfig(ModConfig.ModConfigEvent event)
+        public static void modConfig(ModConfigEvent event)
         {
             ModConfig config = event.getConfig();
             if (config.getSpec() != SERVER_SPEC)
@@ -107,8 +110,8 @@ public class ConfigManager
                 if (m.matches())
                 {
                     String numberPart = m.group("level");
-                    int levelNumber = Integer.parseInt(numberPart);
-                    axeLevelMap.put(levelNumber, e.getIntOrElse(1 + levelNumber));
+                    ResourceLocation levelNumber = new ResourceLocation(numberPart);
+                    axeLevelMap.put(levelNumber, e.getInt());
                 }
             }
         }

@@ -1,36 +1,35 @@
 package gigaherz.woodworking;
 
 import com.google.common.collect.ImmutableSet;
-import com.sun.nio.zipfs.ZipFileSystem;
 import gigaherz.woodworking.api.ChoppingRecipe;
 import gigaherz.woodworking.chopblock.ChopblockMaterials;
 import gigaherz.woodworking.chopblock.ChoppingBlock;
 import gigaherz.woodworking.sawmill.gui.SawmillContainer;
 import gigaherz.woodworking.sawmill.gui.SawmillScreen;
 import gigaherz.woodworking.util.*;
-import net.minecraft.block.BlockState;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.ScreenManager;
-import net.minecraft.entity.merchant.villager.VillagerProfession;
-import net.minecraft.inventory.container.ContainerType;
-import net.minecraft.item.ItemGroup;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.IRecipeSerializer;
-import net.minecraft.loot.conditions.LootConditionManager;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.village.PointOfInterestType;
+import net.minecraft.client.gui.screens.MenuScreens;
+import net.minecraft.world.entity.npc.VillagerProfession;
+import net.minecraft.world.inventory.MenuType;
+import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.level.storage.loot.predicates.LootItemConditions;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.ai.village.poi.PoiType;
 import net.minecraftforge.common.crafting.CraftingHelper;
 import net.minecraftforge.common.loot.GlobalLootModifierSerializer;
 import net.minecraftforge.event.RegistryEvent;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.ModLoadingContext;
-import net.minecraftforge.fml.RegistryObject;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.config.ModConfig;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
-import net.minecraftforge.fml.event.lifecycle.GatherDataEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fmllegacy.RegistryObject;
+import net.minecraftforge.forge.event.lifecycle.GatherDataEvent;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.IForgeRegistryEntry;
@@ -52,21 +51,21 @@ public class WoodworkingMod
 
     public static Logger LOGGER = LogManager.getLogger(MODID);
 
-    public static final ItemGroup WOODWORKING_ITEMS = new ItemGroup("woodworking_items")
+    public static final CreativeModeTab WOODWORKING_ITEMS = new CreativeModeTab("woodworking_items")
     {
         @Override
-        public ItemStack createIcon()
+        public ItemStack makeIcon()
         {
             return new ItemStack(WoodworkingBlocks.OAK_CHOPPING_BLOCK.get());
         }
     };
 
     static final RegSitter HELPER = new RegSitter(WoodworkingMod.MODID);
-    private static final DeferredRegister<PointOfInterestType> POI_TYPES = DeferredRegister.create(ForgeRegistries.POI_TYPES, MODID);
+    private static final DeferredRegister<PoiType> POI_TYPES = DeferredRegister.create(ForgeRegistries.POI_TYPES, MODID);
     private static final DeferredRegister<VillagerProfession> PROFESSIONS = DeferredRegister.create(ForgeRegistries.PROFESSIONS, MODID);
 
-    public static final RegistryObject<PointOfInterestType> TABLE_POI = POI_TYPES.register("woodworker",
-            () -> new PointOfInterestType("woodworker", getAllChoppingBlockStates(), 1, 1)
+    public static final RegistryObject<PoiType> TABLE_POI = POI_TYPES.register("woodworker",
+            () -> new PoiType("woodworker", getAllChoppingBlockStates(), 1, 1)
     );
 
     public static final RegistryObject<VillagerProfession> TAILOR = PROFESSIONS.register("woodworker",
@@ -80,7 +79,7 @@ public class WoodworkingMod
         ImmutableSet.Builder<BlockState> builder = ImmutableSet.builder();
         for(ChopblockMaterials mat : ChopblockMaterials.values())
         {
-            builder.addAll(PointOfInterestType.getAllStates(mat.getPristine().get()));
+            builder.addAll(PoiType.getBlockStates(mat.getPristine().get()));
         }
         return builder.build();
     }
@@ -96,8 +95,8 @@ public class WoodworkingMod
         WoodworkingBlocks.HELPER.subscribeEvents(modEventBus);
         WoodworkingTileEntityTypes.HELPER.subscribeEvents(modEventBus);
 
-        modEventBus.addGenericListener(ContainerType.class, this::registerContainers);
-        modEventBus.addGenericListener(IRecipeSerializer.class, this::registerRecipeSerializers);
+        modEventBus.addGenericListener(MenuType.class, this::registerContainers);
+        modEventBus.addGenericListener(RecipeSerializer.class, this::registerRecipeSerializers);
         modEventBus.addGenericListener(GlobalLootModifierSerializer.class, this::lootModifiers);
         modEventBus.addListener(this::commonSetup);
         modEventBus.addListener(this::clientSetup);
@@ -115,14 +114,14 @@ public class WoodworkingMod
         WoodworkingData.gatherData(event);
     }
 
-    private void registerContainers(RegistryEvent.Register<ContainerType<?>> event)
+    private void registerContainers(RegistryEvent.Register<MenuType<?>> event)
     {
         event.getRegistry().registerAll(
-                withName(new ContainerType<>(SawmillContainer::new), "sawmill")
+                withName(new MenuType<>(SawmillContainer::new), "sawmill")
         );
     }
 
-    private void registerRecipeSerializers(RegistryEvent.Register<IRecipeSerializer<?>> event)
+    private void registerRecipeSerializers(RegistryEvent.Register<RecipeSerializer<?>> event)
     {
         CraftingHelper.register(ConfigurationCondition.Serializer.INSTANCE);
         CraftingHelper.register(ConfigToggledIngredientSerializer.NAME, ConfigToggledIngredientSerializer.INSTANCE);
@@ -134,7 +133,7 @@ public class WoodworkingMod
 
     private void lootModifiers(RegistryEvent.Register<GlobalLootModifierSerializer<?>> event)
     {
-        MatchBlockCondition.BLOCK_TAG_CONDITION = LootConditionManager.register("woodworking:match_block", new MatchBlockCondition.Serializer());
+        MatchBlockCondition.BLOCK_TAG_CONDITION = LootItemConditions.register("woodworking:match_block", new MatchBlockCondition.CSerializer());
         event.getRegistry().registerAll(
                 new AppendLootTable.Serializer().setRegistryName(location("append_loot")),
                 new ReplaceDrops.Serializer().setRegistryName(location("replace_drops")),
@@ -149,7 +148,7 @@ public class WoodworkingMod
 
     public void clientSetup(FMLClientSetupEvent event)
     {
-        ScreenManager.registerFactory(SawmillContainer.TYPE, SawmillScreen::new);
+        MenuScreens.register(SawmillContainer.TYPE, SawmillScreen::new);
     }
 
     private static <R extends T, T extends IForgeRegistryEntry<T>> R withName(R obj, ResourceLocation name)

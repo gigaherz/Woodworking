@@ -1,16 +1,16 @@
 package gigaherz.woodworking.util;
 
 import com.google.gson.JsonObject;
-import net.minecraft.inventory.CraftingInventory;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.ICraftingRecipe;
-import net.minecraft.item.crafting.IRecipeSerializer;
-import net.minecraft.item.crafting.IRecipeType;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.world.World;
+import net.minecraft.world.inventory.CraftingContainer;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.CraftingRecipe;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.Level;
 
-public class DummyRecipe implements ICraftingRecipe
+public class DummyRecipe implements CraftingRecipe
 {
     final ResourceLocation id;
 
@@ -20,25 +20,25 @@ public class DummyRecipe implements ICraftingRecipe
     }
 
     @Override
-    public boolean canFit(int width, int height)
+    public boolean canCraftInDimensions(int width, int height)
     {
         return false;
     }
 
     @Override
-    public boolean matches(CraftingInventory inv, World worldIn)
+    public boolean matches(CraftingContainer inv, Level worldIn)
     {
         return false;
     }
 
     @Override
-    public ItemStack getCraftingResult(CraftingInventory inv)
+    public ItemStack assemble(CraftingContainer inv)
     {
         return ItemStack.EMPTY;
     }
 
     @Override
-    public ItemStack getRecipeOutput()
+    public ItemStack getResultItem()
     {
         return ItemStack.EMPTY;
     }
@@ -50,34 +50,34 @@ public class DummyRecipe implements ICraftingRecipe
     }
 
     @Override
-    public IRecipeSerializer<?> getSerializer()
+    public RecipeSerializer<?> getSerializer()
     {
         return null;
     }
 
     @Override
-    public IRecipeType<?> getType()
+    public RecipeType<?> getType()
     {
         return null;
     }
 
-    public static class Serializer extends net.minecraftforge.registries.ForgeRegistryEntry<IRecipeSerializer<?>>
-            implements IRecipeSerializer<DummyRecipe>
+    public static class Serializer extends net.minecraftforge.registries.ForgeRegistryEntry<RecipeSerializer<?>>
+            implements RecipeSerializer<DummyRecipe>
     {
         @Override
-        public DummyRecipe read(ResourceLocation recipeId, JsonObject json)
+        public DummyRecipe fromJson(ResourceLocation recipeId, JsonObject json)
         {
             return new DummyRecipe(recipeId);
         }
 
         @Override
-        public DummyRecipe read(ResourceLocation recipeId, PacketBuffer buffer)
+        public DummyRecipe fromNetwork(ResourceLocation recipeId, FriendlyByteBuf buffer)
         {
             return new DummyRecipe(recipeId);
         }
 
         @Override
-        public void write(PacketBuffer buffer, DummyRecipe recipe)
+        public void toNetwork(FriendlyByteBuf buffer, DummyRecipe recipe)
         {
             // nothing to write
         }

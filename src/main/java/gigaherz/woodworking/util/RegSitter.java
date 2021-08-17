@@ -3,23 +3,23 @@ package gigaherz.woodworking.util;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.mojang.datafixers.types.Type;
-import net.minecraft.block.Block;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityClassification;
-import net.minecraft.entity.EntityType;
-import net.minecraft.item.BlockItem;
-import net.minecraft.item.Item;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityType;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.SoundEvent;
-import net.minecraft.world.World;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.MobCategory;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.item.BlockItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.common.util.NonNullLazy;
 import net.minecraftforge.common.util.NonNullSupplier;
 import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.fml.RegistryObject;
-import net.minecraftforge.fml.network.FMLPlayMessages;
+import net.minecraftforge.fmllegacy.RegistryObject;
+import net.minecraftforge.fmllegacy.network.FMLPlayMessages;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.IForgeRegistry;
@@ -37,7 +37,7 @@ public class RegSitter
     private final List<DeferredRegister<?>> registerList = Lists.newArrayList();
     private final NonNullLazy<DeferredRegister<Block>> BLOCKS = NonNullLazy.of(() -> createDeferred(ForgeRegistries.BLOCKS));
     private final NonNullLazy<DeferredRegister<Item>> ITEMS = NonNullLazy.of(() -> createDeferred(ForgeRegistries.ITEMS));
-    private final NonNullLazy<DeferredRegister<TileEntityType<?>>> TILE_ENTITIES = NonNullLazy.of(() -> createDeferred(ForgeRegistries.TILE_ENTITIES));
+    private final NonNullLazy<DeferredRegister<BlockEntityType<?>>> BLOCK_ENTITIES = NonNullLazy.of(() -> createDeferred(ForgeRegistries.BLOCK_ENTITIES));
     private final NonNullLazy<DeferredRegister<SoundEvent>> SOUND_EVENTS = NonNullLazy.of(() -> createDeferred(ForgeRegistries.SOUND_EVENTS));
     private final NonNullLazy<DeferredRegister<Enchantment>> ENCHANTMENTS = NonNullLazy.of(() -> createDeferred(ForgeRegistries.ENCHANTMENTS));
     private final NonNullLazy<DeferredRegister<EntityType<?>>> ENTITIES = NonNullLazy.of(() -> createDeferred(ForgeRegistries.ENTITIES));
@@ -73,9 +73,9 @@ public class RegSitter
         return RegistryObject.of(new ResourceLocation(modId, name), ForgeRegistries.ITEMS);
     }
 
-    public <T extends TileEntity> RegistryObject<TileEntityType<T>> tileEntity(String name)
+    public <T extends BlockEntity> RegistryObject<BlockEntityType<T>> tileEntity(String name)
     {
-        return RegistryObject.of(new ResourceLocation(modId, name), ForgeRegistries.TILE_ENTITIES);
+        return RegistryObject.of(new ResourceLocation(modId, name), ForgeRegistries.BLOCK_ENTITIES);
     }
 
     /////////////////////////////////////////////////////////
@@ -92,9 +92,9 @@ public class RegSitter
     }
 
     @SafeVarargs
-    public final <T extends TileEntity> MiniTileEntity<T> tileEntity(String name, Supplier<T> factory, RegistryObject<? extends Block>... blocks)
+    public final <T extends BlockEntity> MiniTileEntity<T> tileEntity(String name, BlockEntityType.BlockEntitySupplier<T> factory, RegistryObject<? extends Block>... blocks)
     {
-        return new MiniTileEntity<T>(TILE_ENTITIES, name, factory, ImmutableSet.copyOf(blocks));
+        return new MiniTileEntity<T>(BLOCK_ENTITIES, name, factory, ImmutableSet.copyOf(blocks));
     }
 
     public final <T extends SoundEvent> MiniGeneric<T> soundEvent(String name, Supplier<T> factory)
@@ -107,7 +107,7 @@ public class RegSitter
         return new MiniGeneric<>(ENCHANTMENTS, name, factory);
     }
 
-    public final <T extends Entity> MiniEntity<T> entityType(String name, EntityType.IFactory<T> factory, EntityClassification classification)
+    public final <T extends Entity> MiniEntity<T> entityType(String name, EntityType.EntityFactory<T> factory, MobCategory classification)
     {
         return new MiniEntity<>(ENTITIES, name, factory, classification);
     }
@@ -118,7 +118,7 @@ public class RegSitter
     public class MiniBlock<T extends Block> extends MiniGeneric<T>
     {
         private Function<Supplier<T>, ? extends Item> itemFactory;
-        private Function<Supplier<T>, ? extends TileEntityType<?>> tileEntityFactory;
+        private Function<Supplier<T>, ? extends BlockEntityType<?>> tileEntityFactory;
 
         private MiniBlock(String name, Supplier<T> factory)
         {
@@ -141,17 +141,17 @@ public class RegSitter
             return this;
         }
 
-        public <E extends TileEntity> MiniBlock<T> withTileEntity(Supplier<E> factory)
+        public <E extends BlockEntity> MiniBlock<T> withBlockEntity(BlockEntityType.BlockEntitySupplier<E> factory)
         {
-            return withTileEntity((block) -> new TileEntityType<>(factory, ImmutableSet.of(block.get()), null));
+            return withBlockEntity((block) -> new BlockEntityType<>(factory, ImmutableSet.of(block.get()), null));
         }
 
-        public <E extends TileEntity> MiniBlock<T> withTileEntity(Supplier<E> factory, Function<Supplier<T>, Collection<Supplier<? extends Block>>> validBlocks)
+        public <E extends BlockEntity> MiniBlock<T> withBlockEntity(BlockEntityType.BlockEntitySupplier<E> factory, Function<Supplier<T>, Collection<Supplier<? extends Block>>> validBlocks)
         {
-            return withTileEntity((block) -> new TileEntityType<>(factory, ImmutableSet.copyOf(validBlocks.apply(block).stream().map(Supplier::get).iterator()), null));
+            return withBlockEntity((block) -> new BlockEntityType<>(factory, ImmutableSet.copyOf(validBlocks.apply(block).stream().map(Supplier::get).iterator()), null));
         }
 
-        public MiniBlock<T> withTileEntity(Function<Supplier<T>, ? extends TileEntityType<?>> tileEntityFactory)
+        public MiniBlock<T> withBlockEntity(Function<Supplier<T>, ? extends BlockEntityType<?>> tileEntityFactory)
         {
             this.tileEntityFactory = tileEntityFactory;
             return this;
@@ -163,18 +163,18 @@ public class RegSitter
             if (itemFactory != null)
                 ITEMS.get().register(name, () -> itemFactory.apply(block));
             if (tileEntityFactory != null)
-                TILE_ENTITIES.get().register(name, () -> tileEntityFactory.apply(block));
+                BLOCK_ENTITIES.get().register(name, () -> tileEntityFactory.apply(block));
             return block;
         }
     }
 
-    public class MiniTileEntity<T extends TileEntity> extends MiniGeneric<TileEntityType<T>>
+    public class MiniTileEntity<T extends BlockEntity> extends MiniGeneric<BlockEntityType<T>>
     {
-        private final Supplier<? extends T> factory;
+        private final BlockEntityType.BlockEntitySupplier<? extends T> factory;
         private final Set<RegistryObject<? extends Block>> blocks;
         private Type<?> dataFixerType = null;
 
-        private MiniTileEntity(NonNullSupplier<? extends DeferredRegister<? super TileEntityType<T>>> deferred, String name, Supplier<? extends T> factory, Set<RegistryObject<? extends Block>> blocks)
+        private MiniTileEntity(NonNullSupplier<? extends DeferredRegister<? super BlockEntityType<T>>> deferred, String name, BlockEntityType.BlockEntitySupplier<? extends T> factory, Set<RegistryObject<? extends Block>> blocks)
         {
             super(deferred, name, null);
             this.factory = factory;
@@ -182,14 +182,14 @@ public class RegSitter
         }
 
         @Override
-        protected Supplier<? extends TileEntityType<T>> factory()
+        protected Supplier<? extends BlockEntityType<T>> factory()
         {
             return this::build;
         }
 
-        private TileEntityType<T> build()
+        private BlockEntityType<T> build()
         {
-            return new TileEntityType<>(factory, ImmutableSet.copyOf(blocks.stream().map(RegistryObject::get).iterator()), this.dataFixerType);
+            return new BlockEntityType<>(factory, ImmutableSet.copyOf(blocks.stream().map(RegistryObject::get).iterator()), this.dataFixerType);
         }
     }
 
@@ -197,10 +197,10 @@ public class RegSitter
     {
         private EntityType.Builder<T> builder;
 
-        private MiniEntity(NonNullSupplier<? extends DeferredRegister<? super EntityType<T>>> deferred, String name, EntityType.IFactory<T> factory, EntityClassification classification)
+        private MiniEntity(NonNullSupplier<? extends DeferredRegister<? super EntityType<T>>> deferred, String name, EntityType.EntityFactory<T> factory, MobCategory classification)
         {
             super(deferred, name, null);
-            this.builder = EntityType.Builder.create(factory, classification);
+            this.builder = EntityType.Builder.of(factory, classification);
         }
 
         @Override
@@ -216,31 +216,31 @@ public class RegSitter
 
         public MiniEntity<T> size(float width, float height)
         {
-            builder.size(width, height);
+            builder.sized(width, height);
             return this;
         }
 
         public MiniEntity<T> disableSummoning()
         {
-            builder.disableSummoning();
+            builder.noSummon();
             return this;
         }
 
         public MiniEntity<T> disableSerialization()
         {
-            builder.disableSerialization();
+            builder.noSave();
             return this;
         }
 
         public MiniEntity<T> immuneToFire()
         {
-            builder.immuneToFire();
+            builder.fireImmune();
             return this;
         }
 
         public MiniEntity<T> spawnableFarFromPlayer()
         {
-            builder.func_225435_d();
+            builder.canSpawnFarFromPlayer();
             return this;
         }
 
@@ -262,7 +262,7 @@ public class RegSitter
             return this;
         }
 
-        public MiniEntity<T> setCustomClientFactory(BiFunction<FMLPlayMessages.SpawnEntity, World, T> customClientFactory)
+        public MiniEntity<T> setCustomClientFactory(BiFunction<FMLPlayMessages.SpawnEntity, Level, T> customClientFactory)
         {
             builder.setCustomClientFactory(customClientFactory);
             return this;

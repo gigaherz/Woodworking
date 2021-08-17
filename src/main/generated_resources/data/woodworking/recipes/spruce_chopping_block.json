@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ll"
+  ],
+  "key": {
+    "l": {
+      "tag": "minecraft:spruce_logs"
+    }
+  },
+  "result": {
+    "item": "woodworking:spruce_chopping_block"
+  }
+}

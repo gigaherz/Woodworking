@@ -1,7 +1,0 @@
-{
-  "type": "woodworking:chopping",
-  "ingredient": {
-    "tag": "minecraft:dark_oak_logs"
-  },
-  "result": "minecraft:dark_oak_planks"
-}

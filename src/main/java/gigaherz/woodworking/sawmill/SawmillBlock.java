@@ -1,32 +1,43 @@
 package gigaherz.woodworking.sawmill;
 
-import net.minecraft.block.Block;
-import net.minecraft.block.BlockState;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.ServerPlayerEntity;
-import net.minecraft.inventory.InventoryHelper;
-import net.minecraft.inventory.container.INamedContainerProvider;
-import net.minecraft.item.BlockItemUseContext;
-import net.minecraft.item.ItemStack;
-import net.minecraft.particles.ParticleTypes;
-import net.minecraft.state.BooleanProperty;
-import net.minecraft.state.DirectionProperty;
-import net.minecraft.state.StateContainer;
-import net.minecraft.state.properties.BlockStateProperties;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.util.*;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.BlockRayTraceResult;
-import net.minecraft.world.IBlockReader;
-import net.minecraft.world.World;
-import net.minecraftforge.fml.network.NetworkHooks;
+import net.minecraft.world.level.block.BaseEntityBlock;
+import net.minecraft.world.level.block.Block;
+import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityTicker;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.Containers;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.item.context.BlockPlaceContext;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.DirectionProperty;
+import net.minecraft.world.level.block.state.StateDefinition;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.fmllegacy.network.NetworkHooks;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemHandlerHelper;
 
 import javax.annotation.Nullable;
 import java.util.Random;
 
-public class SawmillBlock extends Block
+import net.minecraft.core.Direction;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.level.block.Mirror;
+import net.minecraft.world.level.block.Rotation;
+
+public class SawmillBlock extends BaseEntityBlock
 {
     public static final DirectionProperty FACING = BlockStateProperties.HORIZONTAL_FACING;
     public static final BooleanProperty POWERED = BlockStateProperties.POWERED;
@@ -34,29 +45,29 @@ public class SawmillBlock extends Block
     public SawmillBlock(Properties properties)
     {
         super(properties);
-        setDefaultState(getStateContainer().getBaseState()
-                .with(FACING, Direction.NORTH)
-                .with(POWERED, false));
+        registerDefaultState(getStateDefinition().any()
+                .setValue(FACING, Direction.NORTH)
+                .setValue(POWERED, false));
     }
 
     @Override
-    protected void fillStateContainer(StateContainer.Builder<Block, BlockState> builder)
+    protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder)
     {
         builder.add(FACING, POWERED);
     }
 
     @Override
-    public int getLightValue(BlockState state, IBlockReader world, BlockPos pos)
+    public int getLightEmission(BlockState state, BlockGetter world, BlockPos pos)
     {
-        return state.get(POWERED) ? 15 : 0;
+        return state.getValue(POWERED) ? 15 : 0;
     }
 
     @Override
-    public void animateTick(BlockState stateIn, World worldIn, BlockPos pos, Random rand)
+    public void animateTick(BlockState stateIn, Level worldIn, BlockPos pos, Random rand)
     {
-        if (stateIn.get(POWERED))
+        if (stateIn.getValue(POWERED))
         {
-            Direction enumfacing = stateIn.get(FACING);
+            Direction enumfacing = stateIn.getValue(FACING);
             double x = (double) pos.getX() + 0.5D;
             double y = (double) pos.getY() + rand.nextDouble() * 6.0D / 16.0D;
             double z = (double) pos.getZ() + 0.5D;
@@ -64,7 +75,7 @@ public class SawmillBlock extends Block
 
             if (rand.nextDouble() < 0.1D)
             {
-                worldIn.playSound(x, y, z, SoundEvents.BLOCK_FURNACE_FIRE_CRACKLE, SoundCategory.BLOCKS, 1.0F, 1.0F, false);
+                worldIn.playLocalSound(x, y, z, SoundEvents.FURNACE_FIRE_CRACKLE, SoundSource.BLOCKS, 1.0F, 1.0F, false);
             }
 
             switch (enumfacing)
@@ -92,58 +103,59 @@ public class SawmillBlock extends Block
     }
 
     @Override
-    public ActionResultType onBlockActivated(BlockState state, World worldIn, BlockPos pos, PlayerEntity player, Hand hand, BlockRayTraceResult blockRayTraceResult)
+    public InteractionResult use(BlockState state, Level worldIn, BlockPos pos, Player player, InteractionHand hand, BlockHitResult blockRayTraceResult)
     {
-        if (worldIn.isRemote)
-            return ActionResultType.SUCCESS;
+        if (worldIn.isClientSide)
+            return InteractionResult.SUCCESS;
 
-        TileEntity tileEntity = worldIn.getTileEntity(pos);
-        if (!(tileEntity instanceof INamedContainerProvider))
-            return ActionResultType.FAIL;
+        BlockEntity tileEntity = worldIn.getBlockEntity(pos);
+        if (!(tileEntity instanceof MenuProvider))
+            return InteractionResult.FAIL;
 
-        NetworkHooks.openGui((ServerPlayerEntity) player, (INamedContainerProvider) tileEntity);
+        NetworkHooks.openGui((ServerPlayer) player, (MenuProvider) tileEntity);
 
-        return ActionResultType.SUCCESS;
-    }
-
-    @Override
-    public boolean hasTileEntity(BlockState state)
-    {
-        return true;
+        return InteractionResult.SUCCESS;
     }
 
     @Nullable
     @Override
-    public TileEntity createTileEntity(BlockState state, IBlockReader world)
+    public BlockEntity newBlockEntity(BlockPos blockPos, BlockState blockState)
     {
-        return new SawmillTileEntity();
+        return new SawmillTileEntity(blockPos, blockState);
     }
 
     @Nullable
     @Override
-    public BlockState getStateForPlacement(BlockItemUseContext context)
+    public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> blockEntityType)
     {
-        return this.getDefaultState().with(FACING, context.getPlacementHorizontalFacing().getOpposite());
+        return level.isClientSide ? null : createTickerHelper(blockEntityType, SawmillTileEntity.TYPE.get(), SawmillTileEntity::serverTick);
+    }
+
+    @Nullable
+    @Override
+    public BlockState getStateForPlacement(BlockPlaceContext context)
+    {
+        return this.defaultBlockState().setValue(FACING, context.getHorizontalDirection().getOpposite());
     }
 
     @Override
-    public void onReplaced(BlockState state, World worldIn, BlockPos pos, BlockState newState, boolean isMoving)
+    public void onRemove(BlockState state, Level worldIn, BlockPos pos, BlockState newState, boolean isMoving)
     {
         if (state.getBlock() != newState.getBlock())
         {
-            TileEntity te = worldIn.getTileEntity(pos);
+            BlockEntity te = worldIn.getBlockEntity(pos);
 
             if (te instanceof SawmillTileEntity)
             {
                 dropInventoryItems(worldIn, pos, ((SawmillTileEntity) te).getInventory());
-                worldIn.updateComparatorOutputLevel(pos, this);
+                worldIn.updateNeighbourForOutputSignal(pos, this);
             }
 
-            super.onReplaced(state, worldIn, pos, newState, isMoving);
+            super.onRemove(state, worldIn, pos, newState, isMoving);
         }
     }
 
-    private static void dropInventoryItems(World worldIn, BlockPos pos, IItemHandler inventory)
+    private static void dropInventoryItems(Level worldIn, BlockPos pos, IItemHandler inventory)
     {
         for (int i = 0; i < inventory.getSlots(); ++i)
         {
@@ -151,23 +163,23 @@ public class SawmillBlock extends Block
 
             if (itemstack.getCount() > 0)
             {
-                InventoryHelper.spawnItemStack(worldIn, (double) pos.getX(), (double) pos.getY(), (double) pos.getZ(), itemstack);
+                Containers.dropItemStack(worldIn, (double) pos.getX(), (double) pos.getY(), (double) pos.getZ(), itemstack);
             }
         }
     }
 
     @Deprecated
     @Override
-    public boolean hasComparatorInputOverride(BlockState state)
+    public boolean hasAnalogOutputSignal(BlockState state)
     {
         return true;
     }
 
     @Deprecated
     @Override
-    public int getComparatorInputOverride(BlockState blockState, World worldIn, BlockPos pos)
+    public int getAnalogOutputSignal(BlockState blockState, Level worldIn, BlockPos pos)
     {
-        TileEntity te = worldIn.getTileEntity(pos);
+        BlockEntity te = worldIn.getBlockEntity(pos);
         if (te instanceof SawmillTileEntity)
             return ItemHandlerHelper.calcRedstoneFromInventory(((SawmillTileEntity) te).getInventory());
         return 0;
@@ -176,12 +188,12 @@ public class SawmillBlock extends Block
     @Override
     public BlockState rotate(BlockState state, Rotation rot)
     {
-        return state.with(FACING, rot.rotate(state.get(FACING)));
+        return state.setValue(FACING, rot.rotate(state.getValue(FACING)));
     }
 
     @Override
     public BlockState mirror(BlockState state, Mirror mirrorIn)
     {
-        return state.with(FACING, mirrorIn.toRotation(state.get(FACING)).rotate(state.get(FACING)));
+        return state.setValue(FACING, mirrorIn.getRotation(state.getValue(FACING)).rotate(state.getValue(FACING)));
     }
 }

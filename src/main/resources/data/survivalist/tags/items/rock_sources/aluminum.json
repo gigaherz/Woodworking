@@ -1,9 +1,0 @@
-{
-  "replace": false,
-  "optional": [
-    "#forge:ores/aluminum"
-  ],
-  "values": [
-
-  ]
-}

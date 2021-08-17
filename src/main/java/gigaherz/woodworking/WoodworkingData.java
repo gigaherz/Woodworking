@@ -4,20 +4,20 @@ import com.google.common.collect.ImmutableList;
 import com.mojang.datafixers.util.Pair;
 import gigaherz.woodworking.chopblock.ChopblockMaterials;
 import gigaherz.woodworking.chopblock.ChoppingBlock;
-import net.minecraft.block.Block;
+import net.minecraft.tags.ItemTags;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.data.*;
-import net.minecraft.data.loot.BlockLootTables;
-import net.minecraft.item.Item;
-import net.minecraft.item.Items;
-import net.minecraft.tags.ITag;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.loot.*;
+import net.minecraft.data.loot.BlockLoot;
+import net.minecraft.world.item.Item;
+import net.minecraft.tags.Tag;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraftforge.common.Tags;
 import net.minecraftforge.common.crafting.ConditionalRecipe;
 import net.minecraftforge.common.crafting.conditions.IConditionBuilder;
 import net.minecraftforge.common.data.ExistingFileHelper;
 import net.minecraftforge.common.data.LanguageProvider;
-import net.minecraftforge.fml.RegistryObject;
-import net.minecraftforge.fml.event.lifecycle.GatherDataEvent;
+import net.minecraftforge.forge.event.lifecycle.GatherDataEvent;
 import net.minecraftforge.registries.ForgeRegistries;
 
 import java.util.Arrays;
@@ -30,6 +30,18 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static gigaherz.woodworking.WoodworkingMod.MODID;
+
+import net.minecraft.data.loot.LootTableProvider;
+import net.minecraft.data.recipes.FinishedRecipe;
+import net.minecraft.data.recipes.RecipeProvider;
+import net.minecraft.data.recipes.ShapedRecipeBuilder;
+import net.minecraft.data.tags.BlockTagsProvider;
+import net.minecraft.data.tags.ItemTagsProvider;
+import net.minecraft.world.level.storage.loot.LootTable;
+import net.minecraft.world.level.storage.loot.LootTables;
+import net.minecraft.world.level.storage.loot.ValidationContext;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSet;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParamSets;
 
 public class WoodworkingData
 {
@@ -50,21 +62,21 @@ public class WoodworkingData
             gen.addProvider(blockTags);
             gen.addProvider(new ItemTags(gen, blockTags, event.getExistingFileHelper()));
             gen.addProvider(new Recipes(gen));
-            gen.addProvider(new LootTables(gen));
+            gen.addProvider(new LootGen(gen));
         }
     }
 
-    public static ITag.INamedTag<Item> makeItemTag(String id)
+    public static Tag.Named<Item> makeItemTag(String id)
     {
         return makeItemTag(new ResourceLocation(id));
     }
 
-    public static ITag.INamedTag<Item> makeItemTag(ResourceLocation id)
+    public static Tag.Named<Item> makeItemTag(ResourceLocation id)
     {
-        return net.minecraft.tags.ItemTags.makeWrapperTag(id.toString());
+        return net.minecraft.tags.ItemTags.bind(id.toString());
     }
 
-    private static class Recipes extends RecipeProvider implements IDataProvider, IConditionBuilder
+    private static class Recipes extends RecipeProvider implements DataProvider, IConditionBuilder
     {
         public Recipes(DataGenerator gen)
         {
@@ -72,21 +84,31 @@ public class WoodworkingData
         }
 
         @Override
-        protected void registerRecipes(Consumer<IFinishedRecipe> consumer)
+        protected void buildCraftingRecipes(Consumer<FinishedRecipe> consumer)
         {
             Arrays.stream(ChopblockMaterials.values())
                     .forEach(log -> {
-                        ITag<Item> tag = makeItemTag(log.getMadeFrom());
-                        ShapedRecipeBuilder.shapedRecipe(log.getPristine().get())
-                                .patternLine("ll")
-                                .key('l', tag)
-                                .addCriterion("has_log", hasItem(tag))
-                                .build(consumer);
+                        Tag<Item> tag = makeItemTag(log.getMadeFrom());
+                        ShapedRecipeBuilder.shaped(log.getPristine().get())
+                                .pattern("ll")
+                                .define('l', tag)
+                                .unlockedBy("has_log", has(tag))
+                                .save(consumer);
                     });
+
+            ShapedRecipeBuilder.shaped(WoodworkingBlocks.SAWMILL.get())
+                    .pattern("ddd")
+                    .pattern("iii")
+                    .pattern("ccc")
+                    .define('d', Tags.Items.GEMS_DIAMOND)
+                    .define('i', Tags.Items.INGOTS_IRON)
+                    .define('c', net.minecraft.tags.ItemTags.STONE_CRAFTING_MATERIALS)
+                    .unlockedBy("has_diamond", has(Tags.Items.GEMS_DIAMOND))
+                    .save(consumer);
         }
     }
 
-    private static class ItemTags extends ItemTagsProvider implements IDataProvider
+    private static class ItemTags extends ItemTagsProvider implements DataProvider
     {
         public ItemTags(DataGenerator gen, BlockTags blockTags, ExistingFileHelper existingFileHelper)
         {
@@ -94,9 +116,9 @@ public class WoodworkingData
         }
 
         @Override
-        protected void registerTags()
+        protected void addTags()
         {
-            this.getOrCreateBuilder(makeItemTag(WoodworkingMod.location("chopping_blocks")))
+            this.tag(makeItemTag(WoodworkingMod.location("chopping_blocks")))
                     .add(Arrays.stream(ChopblockMaterials.values())
                             .flatMap(block -> Stream.of(block.getPristine(), block.getChipped(), block.getDamaged()).map(reg -> reg.get().asItem()))
                             .toArray(Item[]::new));
@@ -105,7 +127,7 @@ public class WoodworkingData
         }
     }
 
-    private static class BlockTags extends BlockTagsProvider implements IDataProvider
+    private static class BlockTags extends BlockTagsProvider implements DataProvider
     {
         public BlockTags(DataGenerator gen, ExistingFileHelper existingFileHelper)
         {
@@ -113,24 +135,29 @@ public class WoodworkingData
         }
 
         @Override
-        protected void registerTags()
+        protected void addTags()
         {
-            this.getOrCreateBuilder(net.minecraft.tags.BlockTags.makeWrapperTag(WoodworkingMod.location("chopping_blocks").toString()))
+            this.tag(net.minecraft.tags.BlockTags.bind(WoodworkingMod.location("chopping_blocks").toString()))
+                    .add(Arrays.stream(ChopblockMaterials.values())
+                            .flatMap(block -> Stream.of(block.getPristine(), block.getChipped(), block.getDamaged()).map(Supplier::get))
+                            .toArray(Block[]::new));
+
+            this.tag(net.minecraft.tags.BlockTags.bind("minecraft:mineable/axe"))
                     .add(Arrays.stream(ChopblockMaterials.values())
                             .flatMap(block -> Stream.of(block.getPristine(), block.getChipped(), block.getDamaged()).map(Supplier::get))
                             .toArray(Block[]::new));
         }
     }
 
-    private static class LootTables extends LootTableProvider implements IDataProvider
+    private static class LootGen extends LootTableProvider implements DataProvider
     {
-        public LootTables(DataGenerator gen)
+        public LootGen(DataGenerator gen)
         {
             super(gen);
         }
 
-        private final List<Pair<Supplier<Consumer<BiConsumer<ResourceLocation, LootTable.Builder>>>, LootParameterSet>> tables = ImmutableList.of(
-                Pair.of(BlockTables::new, LootParameterSets.BLOCK)
+        private final List<Pair<Supplier<Consumer<BiConsumer<ResourceLocation, LootTable.Builder>>>, LootContextParamSet>> tables = ImmutableList.of(
+                Pair.of(BlockTables::new, LootContextParamSets.BLOCK)
                 //Pair.of(FishingLootTables::new, LootParameterSets.FISHING),
                 //Pair.of(ChestLootTables::new, LootParameterSets.CHEST),
                 //Pair.of(EntityLootTables::new, LootParameterSets.ENTITY),
@@ -138,31 +165,31 @@ public class WoodworkingData
         );
 
         @Override
-        protected List<Pair<Supplier<Consumer<BiConsumer<ResourceLocation, LootTable.Builder>>>, LootParameterSet>> getTables()
+        protected List<Pair<Supplier<Consumer<BiConsumer<ResourceLocation, LootTable.Builder>>>, LootContextParamSet>> getTables()
         {
             return tables;
         }
 
         @Override
-        protected void validate(Map<ResourceLocation, LootTable> map, ValidationTracker validationtracker)
+        protected void validate(Map<ResourceLocation, LootTable> map, ValidationContext validationtracker)
         {
             map.forEach((p_218436_2_, p_218436_3_) -> {
-                LootTableManager.validateLootTable(validationtracker, p_218436_2_, p_218436_3_);
+                LootTables.validate(validationtracker, p_218436_2_, p_218436_3_);
             });
         }
 
-        public static class BlockTables extends BlockLootTables
+        public static class BlockTables extends BlockLoot
         {
             @Override
             protected void addTables()
             {
-                this.registerDropSelfLootTable(WoodworkingBlocks.SAWMILL.get());
+                this.dropSelf(WoodworkingBlocks.SAWMILL.get());
 
                 for(ChopblockMaterials mat : ChopblockMaterials.values())
                 {
-                    this.registerDropSelfLootTable(mat.getPristine().get());
-                    this.registerDropSelfLootTable(mat.getChipped().get());
-                    this.registerDropSelfLootTable(mat.getDamaged().get());
+                    this.dropSelf(mat.getPristine().get());
+                    this.dropSelf(mat.getChipped().get());
+                    this.dropSelf(mat.getDamaged().get());
                 }
             }
 

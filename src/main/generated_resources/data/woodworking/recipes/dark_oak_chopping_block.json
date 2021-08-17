@@ -1,0 +1,14 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "ll"
+  ],
+  "key": {
+    "l": {
+      "tag": "minecraft:dark_oak_logs"
+    }
+  },
+  "result": {
+    "item": "woodworking:dark_oak_chopping_block"
+  }
+}

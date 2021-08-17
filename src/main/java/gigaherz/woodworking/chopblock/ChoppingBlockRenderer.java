@@ -1,39 +1,45 @@
 package gigaherz.woodworking.chopblock;
 
-import com.mojang.blaze3d.matrix.MatrixStack;
-import net.minecraft.block.BlockState;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.IRenderTypeBuffer;
-import net.minecraft.client.renderer.ItemRenderer;
-import net.minecraft.client.renderer.model.IBakedModel;
-import net.minecraft.client.renderer.model.ItemCameraTransforms;
-import net.minecraft.client.renderer.tileentity.TileEntityRenderer;
-import net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher;
-import net.minecraft.entity.LivingEntity;
-import net.minecraft.item.ItemStack;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.entity.ItemRenderer;
+import net.minecraft.client.resources.model.BakedModel;
+import net.minecraft.client.renderer.block.model.ItemTransforms;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
+import net.minecraft.client.renderer.blockentity.BlockEntityRenderDispatcher;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.ItemStack;
 import net.minecraftforge.common.util.LazyOptional;
 import net.minecraftforge.items.CapabilityItemHandler;
 import net.minecraftforge.items.IItemHandler;
 
-public class ChoppingBlockRenderer extends TileEntityRenderer<ChoppingBlockTileEntity>
+public class ChoppingBlockRenderer
+        implements BlockEntityRenderer<ChoppingBlockTileEntity>
 {
     private final Minecraft mc = Minecraft.getInstance();
 
-    public ChoppingBlockRenderer(TileEntityRendererDispatcher rendererDispatcherIn)
+    public ChoppingBlockRenderer(BlockEntityRendererProvider.Context ctx)
     {
-        super(rendererDispatcherIn);
     }
 
     @Override
-    public void render(ChoppingBlockTileEntity te, float partialTicks, MatrixStack matrixStack, IRenderTypeBuffer buffer, int combinedLightIn, int combinedOverlayIn)
+    public void render(ChoppingBlockTileEntity te, float partialTicks, PoseStack matrixStack, MultiBufferSource buffer, int combinedLightIn, int combinedOverlayIn)
     {
-        BlockState state = te.getWorld().getBlockState(te.getPos());
+        Level level = te.getLevel();
+        if (level == null)
+            return;
+
+        BlockState state = level.getBlockState(te.getBlockPos());
         if (!(state.getBlock() instanceof ChoppingBlock))
             return;
 
         //if (destroyStage < 0)
         {
-            matrixStack.push();
+            matrixStack.pushPose();
 
             ItemRenderer itemRenderer = mc.getItemRenderer();
 
@@ -42,25 +48,25 @@ public class ChoppingBlockRenderer extends TileEntityRenderer<ChoppingBlockTileE
                 ItemStack stack = inv.getStackInSlot(0);
                 if (stack.getCount() > 0)
                 {
-                    matrixStack.push();
+                    matrixStack.pushPose();
                     matrixStack.translate(0.5, 0.5, 0.5);
 
                     matrixStack.translate(0, -4.5 / 16.0f, 0);
                     matrixStack.scale(2, 2, 2);
 
-                    IBakedModel ibakedmodel = itemRenderer.getItemModelWithOverrides(stack, te.getWorld(), (LivingEntity) null);
-                    itemRenderer.renderItem(stack, ItemCameraTransforms.TransformType.GROUND, true, matrixStack, buffer, combinedLightIn, combinedOverlayIn, ibakedmodel);
+                    BakedModel ibakedmodel = itemRenderer.getModel(stack, level, null, 0);
+                    itemRenderer.render(stack, ItemTransforms.TransformType.GROUND, true, matrixStack, buffer, combinedLightIn, combinedOverlayIn, ibakedmodel);
                     /*int breakStage = te.getBreakStage();
                     if (breakStage >= 0)
                     {
                         renderItem(stack, ItemCameraTransforms.TransformType.GROUND, breakStage);
                     }*/
 
-                    matrixStack.pop();
+                    matrixStack.popPose();
                 }
             });
 
-            matrixStack.pop();
+            matrixStack.popPose();
         }
     }
 }

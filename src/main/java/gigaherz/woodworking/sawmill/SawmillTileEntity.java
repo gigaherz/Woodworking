@@ -4,30 +4,30 @@ import gigaherz.woodworking.WoodworkingTileEntityTypes;
 import gigaherz.woodworking.api.ChoppingContext;
 import gigaherz.woodworking.api.ChoppingRecipe;
 import gigaherz.woodworking.sawmill.gui.SawmillContainer;
-import net.minecraft.block.BlockState;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.entity.player.PlayerInventory;
-import net.minecraft.inventory.container.Container;
-import net.minecraft.inventory.container.INamedContainerProvider;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.CompoundNBT;
-import net.minecraft.tileentity.AbstractFurnaceTileEntity;
-import net.minecraft.tileentity.ITickableTileEntity;
-import net.minecraft.tileentity.TileEntity;
-import net.minecraft.tileentity.TileEntityType;
-import net.minecraft.util.Direction;
-import net.minecraft.util.IIntArray;
-import net.minecraft.util.math.MathHelper;
-import net.minecraft.util.math.vector.Vector3d;
-import net.minecraft.util.text.ITextComponent;
-import net.minecraft.util.text.TranslationTextComponent;
-import net.minecraft.world.World;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.MenuProvider;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntityType;
+import net.minecraft.core.Direction;
+import net.minecraft.world.inventory.ContainerData;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.TranslatableComponent;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.CapabilityInject;
 import net.minecraftforge.common.util.LazyOptional;
-import net.minecraftforge.fml.RegistryObject;
+import net.minecraftforge.fmllegacy.RegistryObject;
 import net.minecraftforge.items.IItemHandler;
 import net.minecraftforge.items.ItemStackHandler;
 import net.minecraftforge.items.wrapper.RangedWrapper;
@@ -36,9 +36,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import java.util.Random;
 
-public class SawmillTileEntity extends TileEntity implements ITickableTileEntity, IIntArray, INamedContainerProvider
+public class SawmillTileEntity extends BlockEntity implements ContainerData, MenuProvider
 {
-    public static RegistryObject<TileEntityType<SawmillTileEntity>> TYPE = WoodworkingTileEntityTypes.SAWMILL_RACK_TILE_ENTITY_TYPE;
+    public static RegistryObject<BlockEntityType<SawmillTileEntity>> TYPE = WoodworkingTileEntityTypes.SAWMILL_RACK_TILE_ENTITY_TYPE;
 
     @CapabilityInject(IItemHandler.class)
     public static Capability<IItemHandler> ITEMS_CAP;
@@ -49,7 +49,7 @@ public class SawmillTileEntity extends TileEntity implements ITickableTileEntity
         protected void onContentsChanged(int slot)
         {
             super.onContentsChanged(slot);
-            markDirty();
+            setChanged();
             needRefreshRecipe = true;
         }
     };
@@ -60,7 +60,7 @@ public class SawmillTileEntity extends TileEntity implements ITickableTileEntity
         @Override
         public ItemStack insertItem(int slot, @Nonnull ItemStack stack, boolean simulate)
         {
-            if (!AbstractFurnaceTileEntity.isFuel(stack))
+            if (!AbstractFurnaceBlockEntity.isFuel(stack))
                 return stack;
 
             return super.insertItem(slot, stack, simulate);
@@ -90,9 +90,9 @@ public class SawmillTileEntity extends TileEntity implements ITickableTileEntity
 
     private boolean needRefreshRecipe = true;
 
-    public SawmillTileEntity()
+    public SawmillTileEntity(BlockPos pos, BlockState state)
     {
-        super(TYPE.get());
+        super(TYPE.get(), pos, state);
     }
 
     public boolean isBurning()
@@ -120,11 +120,11 @@ public class SawmillTileEntity extends TileEntity implements ITickableTileEntity
     }
 
     @Override
-    public void read(BlockState state, CompoundNBT compound)
+    public void load(CompoundTag compound)
     {
-        super.read(state, compound);
+        super.load(compound);
 
-        ITEMS_CAP.readNBT(inventory, null, compound.get("Items"));
+        inventory.deserializeNBT(compound.getCompound("Items"));
 
         remainingBurnTime = compound.getInt("BurnTime");
         cookTime = compound.getInt("CookTime");
@@ -132,11 +132,11 @@ public class SawmillTileEntity extends TileEntity implements ITickableTileEntity
     }
 
     @Override
-    public CompoundNBT write(CompoundNBT compound)
+    public CompoundTag save(CompoundTag compound)
     {
-        compound = super.write(compound);
+        compound = super.save(compound);
 
-        compound.put("Items", ITEMS_CAP.writeNBT(inventory, null));
+        compound.put("Items", inventory.serializeNBT());
 
         compound.putInt("BurnTime", (short) this.remainingBurnTime);
         compound.putInt("CookTime", (short) this.cookTime);
@@ -145,28 +145,24 @@ public class SawmillTileEntity extends TileEntity implements ITickableTileEntity
     }
 
     @Override
-    public void handleUpdateTag(BlockState state, CompoundNBT tag)
+    public void handleUpdateTag(CompoundTag tag)
     {
         // Ignore. We have nothing to sync.
     }
 
-    public static int getSawmillTime(World world, ItemStack stack)
+    public static int getSawmillTime(Level world, ItemStack stack)
     {
         return ChoppingRecipe.getRecipe(world, null, stack).map(recipe -> recipe.getSawingTime()).orElse(0);
     }
 
-    @Override
-    public void tick()
+    public void tickServer()
     {
-        if (world.isRemote)
-            return;
-
         boolean changes = false;
 
         if (needRefreshRecipe)
         {
-            totalBurnTime = ForgeHooks.getBurnTime(inventory.getStackInSlot(1));
-            totalCookTime = getSawmillTime(world, inventory.getStackInSlot(0));
+            totalBurnTime = ForgeHooks.getBurnTime(inventory.getStackInSlot(1), ChoppingRecipe.CHOPPING);
+            totalCookTime = getSawmillTime(level, inventory.getStackInSlot(0));
             needRefreshRecipe = false;
         }
 
@@ -175,79 +171,76 @@ public class SawmillTileEntity extends TileEntity implements ITickableTileEntity
             --this.remainingBurnTime;
         }
 
-        if (!this.world.isRemote)
+        ItemStack fuel = this.inventory.getStackInSlot(1);
+
+        if (this.isBurning() || !fuel.isEmpty())
         {
-            ItemStack fuel = this.inventory.getStackInSlot(1);
+            ChoppingContext ctx = new ChoppingContext(inventory, null, () -> Vec3.atCenterOf(worldPosition), null, 0, RANDOM);
+            changes |= ChoppingRecipe.getRecipe(level, ctx).map(choppingRecipe -> {
+                boolean changes2 = false;
+                if (!this.isBurning() && this.canWork(ctx, choppingRecipe))
+                {
+                    this.totalBurnTime = ForgeHooks.getBurnTime(fuel, ChoppingRecipe.CHOPPING);
+                    this.remainingBurnTime = this.totalBurnTime;
 
-            if (this.isBurning() || !fuel.isEmpty())
-            {
-                ChoppingContext ctx = new ChoppingContext(inventory, null, () -> Vector3d.copyCentered(pos), 0, 0, RANDOM);
-                changes |= ChoppingRecipe.getRecipe(world, ctx).map(choppingRecipe -> {
-                    boolean changes2 = false;
-                    if (!this.isBurning() && this.canWork(ctx, choppingRecipe))
+                    if (this.isBurning())
                     {
-                        this.totalBurnTime = ForgeHooks.getBurnTime(fuel);
-                        this.remainingBurnTime = this.totalBurnTime;
+                        changes2 = true;
 
-                        if (this.isBurning())
+                        if (!fuel.isEmpty())
                         {
-                            changes2 = true;
+                            Item item = fuel.getItem();
+                            fuel.shrink(1);
 
-                            if (!fuel.isEmpty())
+                            if (fuel.isEmpty())
                             {
-                                Item item = fuel.getItem();
-                                fuel.shrink(1);
-
-                                if (fuel.isEmpty())
-                                {
-                                    ItemStack containerItem = item.getContainerItem(fuel);
-                                    this.inventory.setStackInSlot(1, containerItem);
-                                }
+                                ItemStack containerItem = item.getContainerItem(fuel);
+                                this.inventory.setStackInSlot(1, containerItem);
                             }
                         }
                     }
+                }
 
-                    if (this.isBurning() && this.canWork(ctx, choppingRecipe))
+                if (this.isBurning() && this.canWork(ctx, choppingRecipe))
+                {
+                    ++this.cookTime;
+
+                    if (this.totalCookTime == 0)
                     {
-                        ++this.cookTime;
-
-                        if (this.totalCookTime == 0)
-                        {
-                            this.totalCookTime = choppingRecipe.getSawingTime();
-                        }
-
-                        if (this.cookTime >= this.totalCookTime)
-                        {
-                            this.cookTime = 0;
-                            this.totalCookTime = choppingRecipe.getSawingTime();
-                            this.processItem(ctx, choppingRecipe);
-                            changes2 = true;
-                        }
+                        this.totalCookTime = choppingRecipe.getSawingTime();
                     }
-                    else
+
+                    if (this.cookTime >= this.totalCookTime)
                     {
                         this.cookTime = 0;
+                        this.totalCookTime = choppingRecipe.getSawingTime();
+                        this.processItem(ctx, choppingRecipe);
+                        changes2 = true;
                     }
+                }
+                else
+                {
+                    this.cookTime = 0;
+                }
 
-                    return changes2;
-                }).orElse(false);
-            }
-            if (!this.isBurning() && this.cookTime > 0)
-            {
-                this.cookTime = MathHelper.clamp(this.cookTime - 2, 0, this.totalCookTime);
-            }
+                return changes2;
+            }).orElse(false);
+        }
+        if (!this.isBurning() && this.cookTime > 0)
+        {
+            this.cookTime = Mth.clamp(this.cookTime - 2, 0, this.totalCookTime);
         }
 
         BlockState state = getBlockState();
-        if (state.get(SawmillBlock.POWERED) != this.isBurning())
+        if (state.getValue(SawmillBlock.POWERED) != this.isBurning())
         {
-            state = state.with(SawmillBlock.POWERED, this.isBurning());
-            world.setBlockState(pos, state);
+            state = state.setValue(SawmillBlock.POWERED, this.isBurning());
+            level.setBlockAndUpdate(worldPosition, state);
         }
 
         if (changes)
         {
-            this.markDirty();
+            this.setChanged();
         }
     }
 
@@ -277,7 +270,7 @@ public class SawmillTileEntity extends TileEntity implements ITickableTileEntity
         if (choppingRecipe == null)
             return ItemStack.EMPTY;
 
-        ItemStack result = choppingRecipe.getCraftingResult(ctx);
+        ItemStack result = choppingRecipe.assemble(ctx);
 
         ItemStack output = inventory.getStackInSlot(2);
 
@@ -325,21 +318,26 @@ public class SawmillTileEntity extends TileEntity implements ITickableTileEntity
     }
 
     @Override
-    public int size()
+    public int getCount()
     {
         return 4;
     }
 
     @Override
-    public ITextComponent getDisplayName()
+    public Component getDisplayName()
     {
-        return new TranslationTextComponent("container.sawmill.title");
+        return new TranslatableComponent("container.sawmill.title");
     }
 
     @Nullable
     @Override
-    public Container createMenu(int windowId, PlayerInventory playerInventory, PlayerEntity player)
+    public AbstractContainerMenu createMenu(int windowId, Inventory playerInventory, Player player)
     {
         return new SawmillContainer(windowId, this, playerInventory);
+    }
+
+    public static void serverTick(Level level, BlockPos blockPos, BlockState blockState, SawmillTileEntity e)
+    {
+        e.tickServer();
     }
 }

@@ -1,7 +1,0 @@
-{
-  "type": "woodworking:chopping",
-  "ingredient": {
-    "tag": "minecraft:spruce_logs"
-  },
-  "result": "minecraft:spruce_planks"
-}

@@ -1,8 +1,0 @@
-{
-  "type": "woodworking:chopping",
-  "ingredient": {
-    "tag": "minecraft:planks"
-  },
-  "result": "minecraft:stick",
-  "output_multiplier": 2.0
-}

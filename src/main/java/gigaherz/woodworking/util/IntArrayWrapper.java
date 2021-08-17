@@ -1,8 +1,8 @@
 package gigaherz.woodworking.util;
 
-import net.minecraft.util.IIntArray;
+import net.minecraft.world.inventory.ContainerData;
 
-public class IntArrayWrapper implements IIntArray
+public class IntArrayWrapper implements ContainerData
 {
     private final int[] array;
 
@@ -24,7 +24,7 @@ public class IntArrayWrapper implements IIntArray
     }
 
     @Override
-    public int size()
+    public int getCount()
     {
         return 4;
     }

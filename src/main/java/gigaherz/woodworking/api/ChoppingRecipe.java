@@ -4,19 +4,20 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import gigaherz.woodworking.ConfigManager;
 import gigaherz.woodworking.WoodworkingMod;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.crafting.IRecipe;
-import net.minecraft.item.crafting.IRecipeSerializer;
-import net.minecraft.item.crafting.IRecipeType;
-import net.minecraft.item.crafting.Ingredient;
-import net.minecraft.network.PacketBuffer;
-import net.minecraft.util.JSONUtils;
-import net.minecraft.util.NonNullList;
-import net.minecraft.util.ResourceLocation;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.vector.Vector3d;
-import net.minecraft.world.World;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Tier;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.RecipeType;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.util.GsonHelper;
+import net.minecraft.core.NonNullList;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.Level;
 import net.minecraftforge.registries.ForgeRegistries;
 import net.minecraftforge.registries.ForgeRegistryEntry;
 import net.minecraftforge.registries.ObjectHolder;
@@ -26,26 +27,26 @@ import java.util.Collection;
 import java.util.Optional;
 import java.util.Random;
 
-public class ChoppingRecipe implements IRecipe<ChoppingContext>
+public class ChoppingRecipe implements Recipe<ChoppingContext>
 {
     @ObjectHolder("woodworking:chopping")
-    public static IRecipeSerializer<?> SERIALIZER = null;
+    public static RecipeSerializer<?> SERIALIZER = null;
 
-    public static IRecipeType<ChoppingRecipe> CHOPPING = IRecipeType.register(WoodworkingMod.location("chopping").toString());
+    public static RecipeType<ChoppingRecipe> CHOPPING = RecipeType.register(WoodworkingMod.location("chopping").toString());
 
-    public static Optional<ChoppingRecipe> getRecipe(World world, @Nullable BlockPos pos, ItemStack stack)
+    public static Optional<ChoppingRecipe> getRecipe(Level world, @Nullable BlockPos pos, ItemStack stack)
     {
-        return getRecipe(world, new ChoppingContext(new SingletonInventory(stack), null, pos != null ? () -> Vector3d.copyCentered(pos) : null, 0, 0, null));
+        return getRecipe(world, new ChoppingContext(new SingletonInventory(stack), null, pos != null ? () -> Vec3.atCenterOf(pos) : null, null, 0, null));
     }
 
-    public static Optional<ChoppingRecipe> getRecipe(World world, ChoppingContext ctx)
+    public static Optional<ChoppingRecipe> getRecipe(Level world, ChoppingContext ctx)
     {
-        return world.getRecipeManager().getRecipe(CHOPPING, ctx, world);
+        return world.getRecipeManager().getRecipeFor(CHOPPING, ctx, world);
     }
 
-    public static Collection<ChoppingRecipe> getAllRecipes(World world)
+    public static Collection<ChoppingRecipe> getAllRecipes(Level world)
     {
-        return world.getRecipeManager().getRecipesForType(CHOPPING);
+        return world.getRecipeManager().getAllRecipesFor(CHOPPING);
     }
 
     private final ResourceLocation id;
@@ -98,31 +99,31 @@ public class ChoppingRecipe implements IRecipe<ChoppingContext>
     @Override
     public NonNullList<Ingredient> getIngredients()
     {
-        return NonNullList.from(Ingredient.EMPTY, input);
+        return NonNullList.of(Ingredient.EMPTY, input);
     }
 
     @Override
-    public boolean matches(ChoppingContext inv, World worldIn)
+    public boolean matches(ChoppingContext inv, Level worldIn)
     {
-        return input.test(inv.getStackInSlot(0));
+        return input.test(inv.getItem(0));
     }
 
     @Override
-    public ItemStack getCraftingResult(ChoppingContext inv)
+    public ItemStack assemble(ChoppingContext inv)
     {
         return inv.getPlayer() != null
-                ? getResults(inv.getStackInSlot(0), inv.getPlayer(), inv.getAxeLevel(), inv.getFortune(), inv.getRandom())
+                ? getResults(inv.getItem(0), inv.getPlayer(), inv.getAxeLevel(), inv.getFortune(), inv.getRandom())
                 : getResultsSawmill();
     }
 
     @Override
-    public boolean canFit(int width, int height)
+    public boolean canCraftInDimensions(int width, int height)
     {
         return true;
     }
 
     @Override
-    public ItemStack getRecipeOutput()
+    public ItemStack getResultItem()
     {
         return output;
     }
@@ -140,18 +141,18 @@ public class ChoppingRecipe implements IRecipe<ChoppingContext>
     }
 
     @Override
-    public IRecipeSerializer<?> getSerializer()
+    public RecipeSerializer<?> getSerializer()
     {
         return SERIALIZER;
     }
 
     @Override
-    public IRecipeType<?> getType()
+    public RecipeType<?> getType()
     {
         return CHOPPING;
     }
 
-    private ItemStack getResults(ItemStack input, @Nullable PlayerEntity player, int axeLevel, int fortune, Random random)
+    private ItemStack getResults(ItemStack input, @Nullable Player player, @Nullable Tier axeLevel, int fortune, Random random)
     {
         double number = getOutputMultiplier(axeLevel) * (1 + random.nextFloat() * fortune);
 
@@ -176,11 +177,11 @@ public class ChoppingRecipe implements IRecipe<ChoppingContext>
         return ItemStack.EMPTY;
     }
 
-    public double getOutputMultiplier(int axeLevel)
+    public double getOutputMultiplier(@Nullable Tier axeLevel)
     {
         double number = ConfigManager.SERVER.choppingWithEmptyHand.get() * getOutputMultiplier();
 
-        if (axeLevel >= 0)
+        if (axeLevel != null && axeLevel.getLevel() >= 0)
             number = Math.max(0, getOutputMultiplier() * ConfigManager.getAxeLevelMultiplier(axeLevel));
         return number;
     }
@@ -204,39 +205,39 @@ public class ChoppingRecipe implements IRecipe<ChoppingContext>
         return ItemStack.EMPTY;
     }
 
-    public double getHitProgress(int axeLevel)
+    public double getHitProgress(@Nullable Tier axeLevel)
     {
-        return 25 + getHitCountMultiplier() * 25 * Math.max(0, axeLevel);
+        return 25 + getHitCountMultiplier() * 25 * Math.max(0, axeLevel != null ? axeLevel.getLevel() : 0);
     }
 
-    public static class Serializer extends ForgeRegistryEntry<IRecipeSerializer<?>>
-            implements IRecipeSerializer<ChoppingRecipe>
+    public static class Serializer extends ForgeRegistryEntry<RecipeSerializer<?>>
+            implements RecipeSerializer<ChoppingRecipe>
     {
         @Override
-        public ChoppingRecipe read(ResourceLocation recipeId, JsonObject json)
+        public ChoppingRecipe fromJson(ResourceLocation recipeId, JsonObject json)
         {
-            String group = JSONUtils.getString(json, "group", "");
-            JsonElement jsonelement = JSONUtils.isJsonArray(json, "ingredient")
-                    ? JSONUtils.getJsonArray(json, "ingredient")
-                    : JSONUtils.getJsonObject(json, "ingredient");
-            Ingredient ingredient = Ingredient.deserialize(jsonelement);
-            String s1 = JSONUtils.getString(json, "result");
+            String group = GsonHelper.getAsString(json, "group", "");
+            JsonElement jsonelement = GsonHelper.isArrayNode(json, "ingredient")
+                    ? GsonHelper.getAsJsonArray(json, "ingredient")
+                    : GsonHelper.getAsJsonObject(json, "ingredient");
+            Ingredient ingredient = Ingredient.fromJson(jsonelement);
+            String s1 = GsonHelper.getAsString(json, "result");
             ResourceLocation resourcelocation = new ResourceLocation(s1);
             ItemStack itemstack = new ItemStack(Optional.ofNullable(ForgeRegistries.ITEMS.getValue(resourcelocation)).orElseThrow(() -> new IllegalStateException("Item: " + s1 + " does not exist")));
-            double outputMultiplier = JSONUtils.getFloat(json, "output_multiplier", 1.0f);
-            double hitCountMultiplier = JSONUtils.getFloat(json, "hit_count_multiplier", 1.0f);
-            int maxOutput = JSONUtils.getInt(json, "max_output", 0);
-            int sawingTime = JSONUtils.getInt(json, "sawing_time", 200);
+            double outputMultiplier = GsonHelper.getAsFloat(json, "output_multiplier", 1.0f);
+            double hitCountMultiplier = GsonHelper.getAsFloat(json, "hit_count_multiplier", 1.0f);
+            int maxOutput = GsonHelper.getAsInt(json, "max_output", 0);
+            int sawingTime = GsonHelper.getAsInt(json, "sawing_time", 200);
             return new ChoppingRecipe(recipeId, group, ingredient, itemstack, outputMultiplier, hitCountMultiplier, maxOutput, sawingTime);
         }
 
         @Override
-        public ChoppingRecipe read(ResourceLocation recipeId, PacketBuffer buffer)
+        public ChoppingRecipe fromNetwork(ResourceLocation recipeId, FriendlyByteBuf buffer)
         {
 
-            String group = buffer.readString(32767);
-            Ingredient ingredient = Ingredient.read(buffer);
-            ItemStack itemstack = buffer.readItemStack();
+            String group = buffer.readUtf(32767);
+            Ingredient ingredient = Ingredient.fromNetwork(buffer);
+            ItemStack itemstack = buffer.readItem();
             double outputMultiplier = buffer.readDouble();
             double hitCountMultiplier = buffer.readDouble();
             int maxOutput = buffer.readVarInt();
@@ -245,11 +246,11 @@ public class ChoppingRecipe implements IRecipe<ChoppingContext>
         }
 
         @Override
-        public void write(PacketBuffer buffer, ChoppingRecipe recipe)
+        public void toNetwork(FriendlyByteBuf buffer, ChoppingRecipe recipe)
         {
-            buffer.writeString(recipe.group);
-            recipe.input.write(buffer);
-            buffer.writeItemStack(recipe.output);
+            buffer.writeUtf(recipe.group);
+            recipe.input.toNetwork(buffer);
+            buffer.writeItem(recipe.output);
             buffer.writeDouble(recipe.outputMultiplier);
             buffer.writeDouble(recipe.hitCountMultiplier);
             buffer.writeVarInt(recipe.maxOutput);
