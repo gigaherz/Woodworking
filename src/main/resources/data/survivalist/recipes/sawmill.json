@@ -11,6 +11,6 @@
     "c": { "item": "minecraft:cobblestone" }
   },
   "result": {
-    "item": "survivalist:sawmill"
+    "item": "woodworking:sawmill"
   }
 }

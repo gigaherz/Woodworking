@@ -1,8 +1,8 @@
 {
   "values": [
-    "survivalist:stone_rock",
-    "survivalist:diorite_rock",
-    "survivalist:andesite_rock",
-    "survivalist:granite_rock"
+    "woodworking:stone_rock",
+    "woodworking:diorite_rock",
+    "woodworking:andesite_rock",
+    "woodworking:granite_rock"
   ]
 }

@@ -6,9 +6,9 @@
     "ttt"
   ],
   "key": {
-    "t": { "tag": "survivalist:tanned_leather" }
+    "t": { "tag": "woodworking:tanned_leather" }
   },
   "result": {
-    "item": "survivalist:tanned_chestplate"
+    "item": "woodworking:tanned_chestplate"
   }
 }

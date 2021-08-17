@@ -1,4 +1,4 @@
-# Survivalist
+# Woodworking
 Spicing up the early game, without making it tedious
 
 ## Features

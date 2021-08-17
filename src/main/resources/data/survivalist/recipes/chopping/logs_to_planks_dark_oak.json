@@ -1,5 +1,5 @@
 {
-  "type": "survivalist:chopping",
+  "type": "woodworking:chopping",
   "ingredient": {
     "tag": "minecraft:dark_oak_logs"
   },

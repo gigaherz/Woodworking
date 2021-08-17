@@ -1,9 +1,9 @@
 {
-  "parent": "survivalist:block/chopping_block",
+  "parent": "woodworking:block/chopping_block",
   "textures": {
     "bottom": "block/birch_log_top",
-    "top": "survivalist:block/used/birch_slab_top",
-    "side": "survivalist:block/used/birch_slab",
+    "top": "woodworking:block/used/birch_slab_top",
+    "side": "woodworking:block/used/birch_slab",
     "particle": "block/birch_log"
   }
 }

@@ -1,12 +1,12 @@
 {
     "variants": {
-        "facing=north,powered=false": { "model": "survivalist:block/sawmill" },
-        "facing=north,powered=true": { "model": "survivalist:block/sawmill_powered" },
-        "facing=east,powered=false": { "model": "survivalist:block/sawmill", "y": 90 },
-        "facing=east,powered=true": { "model": "survivalist:block/sawmill_powered", "y": 90 },
-        "facing=south,powered=false": { "model": "survivalist:block/sawmill", "y": 180 },
-        "facing=south,powered=true": { "model": "survivalist:block/sawmill_powered", "y": 180 },
-        "facing=west,powered=false": { "model": "survivalist:block/sawmill", "y": 270 },
-        "facing=west,powered=true": { "model": "survivalist:block/sawmill_powered", "y": 270 }
+        "facing=north,powered=false": { "model": "woodworking:block/sawmill" },
+        "facing=north,powered=true": { "model": "woodworking:block/sawmill_powered" },
+        "facing=east,powered=false": { "model": "woodworking:block/sawmill", "y": 90 },
+        "facing=east,powered=true": { "model": "woodworking:block/sawmill_powered", "y": 90 },
+        "facing=south,powered=false": { "model": "woodworking:block/sawmill", "y": 180 },
+        "facing=south,powered=true": { "model": "woodworking:block/sawmill_powered", "y": 180 },
+        "facing=west,powered=false": { "model": "woodworking:block/sawmill", "y": 270 },
+        "facing=west,powered=true": { "model": "woodworking:block/sawmill_powered", "y": 270 }
     }
 }

@@ -1,5 +1,5 @@
 {
   "variants": {
-    "": { "model": "survivalist:block/damaged_acacia_chopping_block" }
+    "": { "model": "woodworking:block/damaged_acacia_chopping_block" }
   }
 }

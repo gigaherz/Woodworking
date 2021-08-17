@@ -1,6 +1,6 @@
 {
-    "parent": "survivalist:block/sawmill",
+    "parent": "woodworking:block/sawmill",
     "textures": {
-        "front": "survivalist:block/sawmill_front_on"
+        "front": "woodworking:block/sawmill_front_on"
     }
 }

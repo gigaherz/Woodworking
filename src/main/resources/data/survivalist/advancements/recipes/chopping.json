@@ -2,12 +2,12 @@
   "parent": "minecraft:recipes/root",
   "rewards": {
     "recipes": [
-      "survivalist:chopblock_oak",
-      "survivalist:chopblock_spruce",
-      "survivalist:chopblock_birch",
-      "survivalist:chopblock_jungle",
-      "survivalist:chopblock_acacia",
-      "survivalist:chopblock_dark_oak"
+      "woodworking:chopblock_oak",
+      "woodworking:chopblock_spruce",
+      "woodworking:chopblock_birch",
+      "woodworking:chopblock_jungle",
+      "woodworking:chopblock_acacia",
+      "woodworking:chopblock_dark_oak"
     ]
   },
   "criteria": {
@@ -24,37 +24,37 @@
     "has_the_recipe1": {
       "trigger": "minecraft:recipe_unlocked",
       "conditions": {
-        "recipe": "survivalist:chopblock_oak"
+        "recipe": "woodworking:chopblock_oak"
       }
     },
     "has_the_recipe2": {
       "trigger": "minecraft:recipe_unlocked",
       "conditions": {
-        "recipe": "survivalist:chopblock_spruce"
+        "recipe": "woodworking:chopblock_spruce"
       }
     },
     "has_the_recipe3": {
       "trigger": "minecraft:recipe_unlocked",
       "conditions": {
-        "recipe": "survivalist:chopblock_birch"
+        "recipe": "woodworking:chopblock_birch"
       }
     },
     "has_the_recipe4": {
       "trigger": "minecraft:recipe_unlocked",
       "conditions": {
-        "recipe": "survivalist:chopblock_jungle"
+        "recipe": "woodworking:chopblock_jungle"
       }
     },
     "has_the_recipe5": {
       "trigger": "minecraft:recipe_unlocked",
       "conditions": {
-        "recipe": "survivalist:chopblock_acacia"
+        "recipe": "woodworking:chopblock_acacia"
       }
     },
     "has_the_recipe6": {
       "trigger": "minecraft:recipe_unlocked",
       "conditions": {
-        "recipe": "survivalist:chopblock_dark_oak"
+        "recipe": "woodworking:chopblock_dark_oak"
       }
     }
   },
